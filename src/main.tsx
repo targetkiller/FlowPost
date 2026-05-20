@@ -359,6 +359,13 @@ function App() {
           </div>
         </section>
       </section>
+
+      <footer className="site-footer">
+        <span>作者：社会观察从业者</span>
+        <a href="https://socialwatcher.pro" target="_blank" rel="noreferrer">
+          socialwatcher.pro
+        </a>
+      </footer>
     </main>
   );
 }

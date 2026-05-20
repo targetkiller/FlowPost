@@ -195,6 +195,28 @@ textarea:focus {
   padding-bottom: 60px;
 }
 
+.site-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  max-width: 1440px;
+  margin: 6px auto 0;
+  padding: 10px 0 2px;
+  color: rgba(23, 33, 28, 0.58);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.site-footer a {
+  color: #315d8b;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
 .phone-frame {
   width: min(100%, 520px);
   padding: 14px;
@@ -426,6 +448,10 @@ mark {
 
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .site-footer {
+    padding: 16px 12px 18px;
   }
 
   .control-panel {
