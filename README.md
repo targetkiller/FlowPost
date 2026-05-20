@@ -1,6 +1,6 @@
-# Share Poster
+# Long Post
 
-Share Poster is a lightweight web tool for turning plain-text research notes, report summaries, and long-form analysis into mobile-friendly share images.
+Long Post is a lightweight web tool for turning plain-text research notes, report summaries, and long-form analysis into mobile-friendly share images.
 
 ## Features
 
