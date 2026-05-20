@@ -187,7 +187,7 @@ function App() {
       });
 
       const link = document.createElement("a");
-      link.download = `flowpost-${Date.now()}.png`;
+      link.download = `share-poster-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
     } finally {
@@ -212,7 +212,7 @@ function App() {
         <aside className="control-panel">
           <div className="brand-row">
             <div>
-              <p className="eyebrow">FlowPost</p>
+              <p className="eyebrow">Share Poster</p>
               <h1>长图分享生成器</h1>
             </div>
             <button className="icon-button" type="button" onClick={resetSample} aria-label="重置示例">

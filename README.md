@@ -1,6 +1,6 @@
-# FlowPost
+# Share Poster
 
-FlowPost is a lightweight web tool for turning plain-text research notes, report summaries, and long-form analysis into mobile-friendly share images.
+Share Poster is a lightweight web tool for turning plain-text research notes, report summaries, and long-form analysis into mobile-friendly share images.
 
 ## Features
 
@@ -69,4 +69,3 @@ The current default share image settings are:
 - QR Code URL: `https://t.zsxq.com/xvVXu`
 - Footer Title: `社会观察从业者`
 - Footer Subtitle: `公众号&知识星球`
-
