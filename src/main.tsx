@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import { toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  Download,
   Highlighter,
   ImageDown,
   Link,
@@ -164,6 +163,7 @@ function App() {
   const [footerSubtitle, setFooterSubtitle] = useState("公众号&知识星球");
   const [theme, setTheme] = useState<ThemeName>("ink");
   const [isExporting, setIsExporting] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
 
   const parsed = useMemo(() => parseContent(content), [content]);
@@ -174,7 +174,7 @@ function App() {
     day: "2-digit",
   }).format(new Date());
 
-  async function exportImage() {
+  async function generateImage() {
     if (!cardRef.current) return;
 
     setIsExporting(true);
@@ -186,10 +186,7 @@ function App() {
         filter: (node) => !((node as HTMLElement).dataset?.exportHidden === "true"),
       });
 
-      const link = document.createElement("a");
-      link.download = `long-post-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
+      setGeneratedImage(dataUrl);
     } finally {
       setIsExporting(false);
     }
@@ -295,9 +292,9 @@ function App() {
             <input value={footerSubtitle} onChange={(event) => setFooterSubtitle(event.target.value)} placeholder="更小一行的补充说明" />
           </label>
 
-          <button className="primary-action" type="button" onClick={exportImage} disabled={isExporting}>
-            {isExporting ? <ImageDown size={18} /> : <Download size={18} />}
-            {isExporting ? "生成中" : "下载长图"}
+          <button className="primary-action" type="button" onClick={generateImage} disabled={isExporting}>
+            <ImageDown size={18} />
+            {isExporting ? "生成中" : "生成图片"}
           </button>
         </aside>
 
@@ -357,6 +354,13 @@ function App() {
               </footer>
             </article>
           </div>
+
+          {generatedImage && (
+            <figure className="generated-output" data-export-hidden="true">
+              <figcaption>已生成图片，可右键复制或另存为</figcaption>
+              <img src={generatedImage} alt="生成后的长图" />
+            </figure>
+          )}
         </section>
       </section>
 

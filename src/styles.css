@@ -193,8 +193,10 @@ textarea:focus {
 .preview-stage {
   min-height: calc(100vh - 40px);
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: flex-start;
+  gap: 14px;
   overflow: auto;
   padding-bottom: 36px;
 }
@@ -228,6 +230,33 @@ textarea:focus {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
   box-shadow: 0 20px 48px rgba(23, 33, 28, 0.11);
+}
+
+.generated-output {
+  width: min(100%, 500px);
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(23, 33, 28, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 14px 32px rgba(23, 33, 28, 0.08);
+}
+
+.generated-output figcaption {
+  margin: 0 0 8px;
+  color: rgba(23, 33, 28, 0.62);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.generated-output img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  background: #fff;
+  user-select: auto;
+  -webkit-user-drag: auto;
 }
 
 .share-card {
