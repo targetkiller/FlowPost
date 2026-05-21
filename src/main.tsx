@@ -357,8 +357,12 @@ function App() {
           </div>
 
           {generatedImage && (
-            <div className={`generated-overlay ${themes[theme].className}`} data-export-hidden="true">
-              <img src={generatedImage} alt="生成后的长图" />
+            <div
+              className={`generated-overlay ${themes[theme].className}`}
+              data-export-hidden="true"
+              onClick={() => setGeneratedImage("")}
+            >
+              <img src={generatedImage} alt="生成后的长图" onClick={(event) => event.stopPropagation()} />
             </div>
           )}
 
