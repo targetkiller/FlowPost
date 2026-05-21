@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
+const storageKey = "flowpost:last-input";
+
 const sampleText = `财报还能 beat，但市场已经不只买 GPU 增长了
 
 汇丰继续看多英伟达，把目标价从 295 美元上调到 325 美元，但这份报告真正有意思的地方不是上调目标价，而是它明确承认：NVDA 下一轮重估，需要新叙事，不是单纯再来一次 beat and raise。
@@ -103,6 +105,40 @@ type ContentItem =
   | { type: "paragraph"; text: string }
   | { type: "bullet"; text: string; marker?: string };
 
+type FormDraft = {
+  content: string;
+  title: string;
+  subtitle: string;
+  watermark: string;
+  qrLink: string;
+  footerText: string;
+  footerSubtitle: string;
+};
+
+function normalizeInputText(text: string) {
+  return text.replace(/\r\n/g, "\n").replace(/\n{2,}/g, "\n");
+}
+
+function readStoredDraft() {
+  try {
+    const stored = window.localStorage.getItem(storageKey);
+    if (!stored) return null;
+
+    const parsed = JSON.parse(stored) as Partial<FormDraft>;
+    return {
+      content: normalizeInputText(parsed.content || sampleText),
+      title: parsed.title || "",
+      subtitle: parsed.subtitle || "",
+      watermark: parsed.watermark || "社会观察从业者",
+      qrLink: parsed.qrLink || "https://t.zsxq.com/xvVXu",
+      footerText: parsed.footerText || "社会观察从业者",
+      footerSubtitle: parsed.footerSubtitle || "公众号&知识星球",
+    } satisfies FormDraft;
+  } catch {
+    return null;
+  }
+}
+
 function renderInline(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)/g).filter(Boolean);
 
@@ -183,7 +219,9 @@ function parseMarkdownContent(text: string) {
       return;
     }
 
+    flushParagraph();
     paragraphLines.push(line.replace(/^>\s?/, ""));
+    flushParagraph();
   });
 
   flushParagraph();
@@ -203,11 +241,13 @@ function parseMarkdownContent(text: string) {
 }
 
 function parseContent(text: string) {
-  if (isMarkdownContent(text)) {
-    return parseMarkdownContent(text);
+  const normalizedText = normalizeInputText(text).trim();
+
+  if (isMarkdownContent(normalizedText)) {
+    return parseMarkdownContent(normalizedText);
   }
 
-  const blocks = text
+  const blocks = normalizedText
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean);
@@ -246,14 +286,15 @@ function parseContent(text: string) {
 }
 
 function App() {
-  const [content, setContent] = useState(sampleText);
-  const [title, setTitle] = useState("");
-  const [isTitleEdited, setIsTitleEdited] = useState(false);
-  const [subtitle, setSubtitle] = useState("HSBC 研报");
-  const [watermark, setWatermark] = useState("社会观察从业者");
-  const [qrLink, setQrLink] = useState("https://t.zsxq.com/xvVXu");
-  const [footerText, setFooterText] = useState("社会观察从业者");
-  const [footerSubtitle, setFooterSubtitle] = useState("公众号&知识星球");
+  const storedDraft = useMemo(() => readStoredDraft(), []);
+  const [content, setContent] = useState(() => storedDraft?.content || normalizeInputText(sampleText));
+  const [title, setTitle] = useState(() => storedDraft?.title || "");
+  const [isTitleEdited, setIsTitleEdited] = useState(() => Boolean(storedDraft?.title));
+  const [subtitle, setSubtitle] = useState(() => storedDraft?.subtitle || "");
+  const [watermark, setWatermark] = useState(() => storedDraft?.watermark || "社会观察从业者");
+  const [qrLink, setQrLink] = useState(() => storedDraft?.qrLink || "https://t.zsxq.com/xvVXu");
+  const [footerText, setFooterText] = useState(() => storedDraft?.footerText || "社会观察从业者");
+  const [footerSubtitle, setFooterSubtitle] = useState(() => storedDraft?.footerSubtitle || "公众号&知识星球");
   const [isExporting, setIsExporting] = useState(false);
   const [generatedImage, setGeneratedImage] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
@@ -279,16 +320,28 @@ function App() {
       });
 
       setGeneratedImage(dataUrl);
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          content: normalizeInputText(content),
+          title,
+          subtitle,
+          watermark,
+          qrLink,
+          footerText,
+          footerSubtitle,
+        } satisfies FormDraft),
+      );
     } finally {
       setIsExporting(false);
     }
   }
 
   function resetSample() {
-    setContent(sampleText);
+    setContent(normalizeInputText(sampleText));
     setTitle("");
     setIsTitleEdited(false);
-    setSubtitle("HSBC 研报");
+    setSubtitle("");
     setWatermark("社会观察从业者");
     setQrLink("https://t.zsxq.com/xvVXu");
     setFooterText("社会观察从业者");
@@ -340,7 +393,7 @@ function App() {
             <textarea
               value={content}
               onChange={(event) => {
-                const nextContent = event.target.value;
+                const nextContent = normalizeInputText(event.target.value);
                 const nextParsed = parseContent(nextContent);
 
                 setContent(nextContent);

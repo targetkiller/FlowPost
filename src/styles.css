@@ -456,7 +456,7 @@ textarea::placeholder {
   gap: 10px;
   align-items: start;
   margin: 12px 0 2px;
-  padding: 9px 10px;
+  padding: 9px 10px 7px 10px;
   border-radius: 8px;
   background: linear-gradient(90deg, var(--accent-soft), rgba(255, 255, 255, 0.58));
   border: 1px solid var(--hairline);
@@ -513,9 +513,9 @@ code {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 18px;
   margin-top: 0;
-  padding: 10px;
+  padding: 14px 18px;
   border-radius: 8px;
   color: var(--ink);
   background: var(--accent-soft);
@@ -524,7 +524,8 @@ code {
 
 .footer-copy {
   display: grid;
-  gap: 4px;
+  gap: 8px;
+  padding-left: 4px;
 }
 
 .footer-copy strong {
