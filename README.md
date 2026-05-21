@@ -11,7 +11,7 @@ Long Post is a lightweight web tool for turning plain-text research notes, repor
 - Subtle tiled watermark across the generated image.
 - Footer QR code for subscriptions, communities, or source links.
 - One-click PNG export in the browser.
-- Theme presets including 墨蓝, 晨光, and 黑白.
+- Fixed blue visual style optimized for research-note share images.
 
 ## Tech Stack
 

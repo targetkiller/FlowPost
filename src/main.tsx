@@ -7,7 +7,6 @@ import {
   Highlighter,
   ImageDown,
   Link,
-  Palette,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -99,17 +98,10 @@ NVDA 的基本面还强，但市场已经从 AI GPU 稀缺性，切到 AI capex 
 
 NVDA 还能 beat，但要再创新高，市场要的不是更好的财报，而是下一个足够大的新叙事。`;
 
-type ThemeName = "mono" | "ink" | "sunrise";
 type ContentItem =
   | { type: "section"; text: string; number?: string }
   | { type: "paragraph"; text: string }
   | { type: "bullet"; text: string };
-
-const themes: Record<ThemeName, { label: string; className: string }> = {
-  ink: { label: "墨蓝", className: "theme-ink" },
-  sunrise: { label: "晨光", className: "theme-sunrise" },
-  mono: { label: "黑白", className: "theme-mono" },
-};
 
 function renderInline(text: string) {
   return text;
@@ -162,7 +154,6 @@ function App() {
   const [qrLink, setQrLink] = useState("https://t.zsxq.com/xvVXu");
   const [footerText, setFooterText] = useState("社会观察从业者");
   const [footerSubtitle, setFooterSubtitle] = useState("公众号&知识星球");
-  const [theme, setTheme] = useState<ThemeName>("ink");
   const [isExporting, setIsExporting] = useState(false);
   const [generatedImage, setGeneratedImage] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
@@ -201,7 +192,6 @@ function App() {
     setQrLink("https://t.zsxq.com/xvVXu");
     setFooterText("社会观察从业者");
     setFooterSubtitle("公众号&知识星球");
-    setTheme("ink");
   }
 
   return (
@@ -242,29 +232,10 @@ function App() {
             <textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="粘贴报告总结、会议纪要或投研笔记" />
           </label>
 
-          <div className="field">
-            <span>
-              <Palette size={16} />
-              视觉风格
-            </span>
-            <div className="segmented">
-              {(Object.keys(themes) as ThemeName[]).map((name) => (
-                <button
-                  className={theme === name ? "active" : ""}
-                  key={name}
-                  type="button"
-                  onClick={() => setTheme(name)}
-                >
-                  {themes[name].label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <label className="field">
             <span>
               <ShieldCheck size={16} />
-              平铺水印
+              水印
             </span>
             <input value={watermark} onChange={(event) => setWatermark(event.target.value)} placeholder="水印名称" />
           </label>
@@ -272,7 +243,7 @@ function App() {
           <label className="field">
             <span>
               <Link size={16} />
-              二维码链接
+              底部二维码
             </span>
             <input value={qrLink} onChange={(event) => setQrLink(event.target.value)} placeholder="https://..." />
           </label>
@@ -301,7 +272,7 @@ function App() {
 
         <section className="preview-stage">
           <div className="phone-frame">
-            <article className={`share-card ${themes[theme].className}`} ref={cardRef}>
+            <article className="share-card theme-ink" ref={cardRef}>
               <div className="watermark-layer" aria-hidden="true">
                 {Array.from({ length: 40 }).map((_, index) => (
                   <span key={index}>{watermark}</span>
@@ -358,7 +329,7 @@ function App() {
 
           {generatedImage && (
             <div
-              className={`generated-overlay ${themes[theme].className}`}
+              className="generated-overlay theme-ink"
               data-export-hidden="true"
               onClick={() => setGeneratedImage("")}
             >
