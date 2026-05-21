@@ -358,13 +358,16 @@ function App() {
 
           {generatedImage && (
             <div className={`generated-overlay ${themes[theme].className}`} data-export-hidden="true">
-              <div className="generated-toolbar">
-                <span>右键复制或另存为图片</span>
-                <button type="button" onClick={() => setGeneratedImage("")} aria-label="关闭生成图片">
-                  <X size={16} />
-                </button>
-              </div>
               <img src={generatedImage} alt="生成后的长图" />
+            </div>
+          )}
+
+          {generatedImage && (
+            <div className="generated-toolbar" data-export-hidden="true">
+              <span>右键复制或另存为图片</span>
+              <button type="button" onClick={() => setGeneratedImage("")} aria-label="关闭生成图片">
+                <X size={16} />
+              </button>
             </div>
           )}
         </section>
