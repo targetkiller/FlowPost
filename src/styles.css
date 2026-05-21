@@ -1,6 +1,9 @@
 :root {
   font-family:
     Inter,
+    "SF Pro Display",
+    "SF Pro Text",
+    "Hiragino Sans GB",
     "PingFang SC",
     "Microsoft YaHei",
     system-ui,
@@ -36,10 +39,10 @@ button {
 .app-shell {
   min-height: 100vh;
   background:
-    linear-gradient(90deg, rgba(28, 95, 82, 0.08) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(28, 95, 82, 0.08) 1px, transparent 1px),
-    #eef2ee;
-  background-size: 36px 36px;
+    linear-gradient(90deg, rgba(34, 48, 68, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(34, 48, 68, 0.06) 1px, transparent 1px),
+    #eef1f4;
+  background-size: 32px 32px;
   padding: 20px;
 }
 
@@ -56,10 +59,10 @@ button {
   display: grid;
   gap: 12px;
   padding: 16px;
-  border: 1px solid rgba(23, 33, 28, 0.12);
+  border: 1px solid rgba(23, 33, 28, 0.1);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 18px 40px rgba(23, 33, 28, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 32px rgba(23, 33, 28, 0.07);
   position: sticky;
   top: 20px;
 }
@@ -73,7 +76,7 @@ button {
 
 .eyebrow {
   margin: 0 0 4px;
-  color: #477668;
+  color: #315d8b;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -83,7 +86,8 @@ button {
 h1 {
   margin: 0;
   font-size: 22px;
-  line-height: 1.18;
+  line-height: 1.16;
+  color: #172435;
 }
 
 .icon-button {
@@ -114,7 +118,7 @@ h1 {
 input,
 textarea {
   width: 100%;
-  border: 1px solid rgba(23, 33, 28, 0.16);
+  border: 1px solid rgba(23, 33, 28, 0.12);
   border-radius: 8px;
   background: #ffffff;
   color: #17211c;
@@ -220,10 +224,10 @@ textarea:focus {
 .phone-frame {
   width: min(100%, 500px);
   padding: 10px;
-  border: 1px solid rgba(23, 33, 28, 0.1);
+  border: 1px solid rgba(23, 33, 28, 0.08);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.66);
-  box-shadow: 0 22px 55px rgba(23, 33, 28, 0.12);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 20px 48px rgba(23, 33, 28, 0.11);
 }
 
 .share-card {
@@ -232,33 +236,55 @@ textarea:focus {
   min-height: 820px;
   overflow: hidden;
   border-radius: 8px;
-  background: #fbfffb;
-  color: #16211c;
+  background: var(--paper);
+  color: var(--ink);
   padding: 28px 24px 16px;
+  box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
 .share-card.theme-mono {
   --accent: #111111;
-  --accent-soft: #f2f2f0;
-  --accent-line: #c8c8c2;
+  --accent-2: #6b6b66;
+  --accent-soft: #f4f4f1;
+  --accent-line: #cfcfca;
+  --hairline: rgba(17, 17, 17, 0.12);
   --paper: #ffffff;
   --ink: #171717;
+  --muted: rgba(23, 23, 23, 0.58);
+  --watermark: rgba(17, 17, 17, 0.05);
 }
 
 .share-card.theme-ink {
-  --accent: #315d8b;
-  --accent-soft: #e4eef8;
-  --accent-line: #a7bfdc;
+  --accent: #264e82;
+  --accent-2: #5e7fa8;
+  --accent-soft: #eef4fb;
+  --accent-line: #b9c9db;
+  --hairline: rgba(38, 78, 130, 0.14);
   --paper: #fbfdff;
-  --ink: #172435;
+  --ink: #182536;
+  --muted: rgba(24, 37, 54, 0.58);
+  --watermark: rgba(38, 78, 130, 0.05);
 }
 
 .share-card.theme-sunrise {
-  --accent: #b24738;
-  --accent-soft: #fdece4;
-  --accent-line: #ecc1af;
-  --paper: #fffdf9;
-  --ink: #291d18;
+  --accent: #9f4638;
+  --accent-2: #c78363;
+  --accent-soft: #fff3ec;
+  --accent-line: #e3baa7;
+  --hairline: rgba(159, 70, 56, 0.15);
+  --paper: #fffdfa;
+  --ink: #2b211e;
+  --muted: rgba(43, 33, 30, 0.58);
+  --watermark: rgba(159, 70, 56, 0.05);
+}
+
+.share-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  z-index: 2;
 }
 
 .watermark-layer {
@@ -269,13 +295,14 @@ textarea:focus {
   gap: 42px 16px;
   pointer-events: none;
   transform: rotate(-24deg);
-  opacity: 0.05;
+  opacity: 1;
+  z-index: 0;
 }
 
 .watermark-layer span {
-  color: var(--accent);
+  color: var(--watermark);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -288,15 +315,15 @@ textarea:focus {
 
 .share-header {
   position: relative;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--accent-line);
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--accent-line);
 }
 
 .share-header p {
   margin: 0 0 8px;
   color: var(--accent);
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 11px;
+  font-weight: 850;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -304,40 +331,41 @@ textarea:focus {
 .share-header h2 {
   margin: 0;
   color: var(--ink);
-  font-size: 27px;
-  line-height: 1.2;
+  font-size: 26px;
+  line-height: 1.18;
+  font-weight: 850;
 }
 
 .card-date {
   position: absolute;
   top: 2px;
   right: 0;
-  color: rgba(22, 33, 28, 0.48);
+  color: var(--muted);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 750;
   line-height: 1;
 }
 
 .summary-list {
   display: grid;
-  gap: 10px;
-  padding: 20px 0 14px;
+  gap: 9px;
+  padding: 18px 0 12px;
 }
 
 .text-block {
   display: grid;
-  grid-template-columns: 12px 1fr;
+  grid-template-columns: 10px 1fr;
   gap: 10px;
   align-items: start;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 
 .text-block p {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--ink);
-  font-size: 15px;
-  line-height: 1.68;
+  font-size: 14.5px;
+  line-height: 1.72;
   font-weight: 400;
   word-break: break-word;
 }
@@ -347,32 +375,32 @@ textarea:focus {
 }
 
 .bullet-dot {
-  width: 6px;
-  height: 6px;
-  margin-top: 11px;
+  width: 5px;
+  height: 5px;
+  margin-top: 10px;
   border-radius: 99px;
   background: var(--accent);
 }
 
 .section-heading {
   display: grid;
-  grid-template-columns: 34px 1fr;
-  gap: 11px;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
   align-items: start;
-  margin: 10px 0 1px;
-  padding: 10px 12px;
+  margin: 12px 0 2px;
+  padding: 9px 10px;
   border-radius: 8px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
+  background: linear-gradient(90deg, var(--accent-soft), rgba(255, 255, 255, 0.58));
+  border: 1px solid var(--hairline);
 }
 
 .section-heading span {
   display: inline-flex;
-  min-width: 26px;
-  height: 26px;
+  min-width: 24px;
+  height: 24px;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #fff;
   background: var(--accent);
   font-size: 12px;
@@ -382,9 +410,9 @@ textarea:focus {
 .section-heading h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 17px;
-  line-height: 1.42;
-  font-weight: 900;
+  font-size: 16px;
+  line-height: 1.38;
+  font-weight: 850;
   word-break: break-word;
 }
 
@@ -402,11 +430,11 @@ mark {
   justify-content: space-between;
   gap: 14px;
   margin-top: 0;
-  padding: 10px 12px;
+  padding: 10px;
   border-radius: 8px;
   color: var(--ink);
-  background: linear-gradient(135deg, var(--accent-soft), #ffffff);
-  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  border: 1px solid var(--hairline);
 }
 
 .footer-copy {
@@ -417,10 +445,11 @@ mark {
 .footer-copy strong {
   font-size: 15px;
   line-height: 1.35;
+  font-weight: 850;
 }
 
 .footer-copy span {
-  color: rgba(22, 33, 28, 0.62);
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
   font-weight: 750;
@@ -438,7 +467,7 @@ mark {
   place-items: center;
   border-radius: 8px;
   background: #fff;
-  box-shadow: 0 10px 24px rgba(23, 33, 28, 0.12);
+  box-shadow: 0 8px 18px rgba(23, 33, 28, 0.1);
 }
 
 @media (max-width: 980px) {
