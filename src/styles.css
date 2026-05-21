@@ -193,10 +193,11 @@ textarea:focus {
 .preview-stage {
   position: relative;
   min-height: calc(100vh - 40px);
+  max-height: calc(100vh - 40px);
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  overflow: auto;
+  overflow: hidden;
   padding-bottom: 36px;
 }
 
@@ -245,10 +246,10 @@ textarea:focus {
 }
 
 .generated-toolbar {
-  position: absolute;
-  top: 0;
-  right: 10px;
-  z-index: 6;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 20;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -558,6 +559,11 @@ mark {
   .control-panel {
     position: static;
   }
+
+  .preview-stage {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 560px) {
@@ -593,6 +599,11 @@ mark {
 
   .card-date {
     font-size: 10px;
+  }
+
+  .generated-toolbar {
+    top: 8px;
+    right: 8px;
   }
 
   .text-block p {
