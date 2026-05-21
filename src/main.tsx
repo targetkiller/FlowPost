@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import {
+  X,
   Highlighter,
   ImageDown,
   Link,
@@ -356,10 +357,15 @@ function App() {
           </div>
 
           {generatedImage && (
-            <figure className="generated-output" data-export-hidden="true">
-              <figcaption>已生成图片，可右键复制或另存为</figcaption>
+            <div className="generated-overlay" data-export-hidden="true">
+              <div className="generated-toolbar">
+                <span>右键复制或另存为图片</span>
+                <button type="button" onClick={() => setGeneratedImage("")} aria-label="关闭生成图片">
+                  <X size={16} />
+                </button>
+              </div>
               <img src={generatedImage} alt="生成后的长图" />
-            </figure>
+            </div>
           )}
         </section>
       </section>
