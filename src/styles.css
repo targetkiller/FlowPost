@@ -208,8 +208,25 @@ textarea::placeholder {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-bottom: 36px;
+}
+
+.preview-stage::-webkit-scrollbar,
+.generated-overlay::-webkit-scrollbar {
+  width: 8px;
+}
+
+.preview-stage::-webkit-scrollbar-thumb,
+.generated-overlay::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(38, 78, 130, 0.24);
+}
+
+.preview-stage::-webkit-scrollbar-track,
+.generated-overlay::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .site-footer {
