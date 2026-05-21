@@ -101,13 +101,112 @@ NVDA 还能 beat，但要再创新高，市场要的不是更好的财报，而�
 type ContentItem =
   | { type: "section"; text: string; number?: string }
   | { type: "paragraph"; text: string }
-  | { type: "bullet"; text: string };
+  | { type: "bullet"; text: string; marker?: string };
 
 function renderInline(text: string) {
-  return text;
+  const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)/g).filter(Boolean);
+
+  return parts.map((part, index) => {
+    if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) {
+      return <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>;
+    }
+
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={`${part}-${index}`}>{part.slice(1, -1)}</code>;
+    }
+
+    return part;
+  });
+}
+
+function cleanMarkdownText(text: string) {
+  return text
+    .trim()
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/\s+#+$/, "")
+    .replace(/^\*\*(.+)\*\*$/, "$1")
+    .replace(/^__(.+)__$/, "$1");
+}
+
+function isMarkdownContent(text: string) {
+  return /(^|\n)\s*#{1,6}\s+\S/.test(text) || /(^|\n)\s*(?:[-*+]|\d+[.)])\s+\S/.test(text);
+}
+
+function parseMarkdownContent(text: string) {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const items: ContentItem[] = [];
+  const paragraphLines: string[] = [];
+  let inferredTitle = "";
+
+  function flushParagraph() {
+    const paragraph = paragraphLines.join(" ").trim();
+    if (paragraph) {
+      items.push({ type: "paragraph", text: cleanMarkdownText(paragraph) });
+    }
+    paragraphLines.length = 0;
+  }
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushParagraph();
+      return;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*$/);
+    if (heading) {
+      flushParagraph();
+      const level = heading[1].length;
+      const headingText = cleanMarkdownText(heading[2]);
+
+      if (level === 1 && !inferredTitle) {
+        inferredTitle = headingText;
+        return;
+      }
+
+      items.push({ type: "section", text: headingText });
+      return;
+    }
+
+    const unorderedItem = line.match(/^[-*+]\s+(.+)$/);
+    if (unorderedItem) {
+      flushParagraph();
+      items.push({ type: "bullet", text: cleanMarkdownText(unorderedItem[1]) });
+      return;
+    }
+
+    const orderedItem = line.match(/^(\d+)[.)]\s+(.+)$/);
+    if (orderedItem) {
+      flushParagraph();
+      items.push({ type: "bullet", marker: `${orderedItem[1]}.`, text: cleanMarkdownText(orderedItem[2]) });
+      return;
+    }
+
+    paragraphLines.push(line.replace(/^>\s?/, ""));
+  });
+
+  flushParagraph();
+
+  if (!inferredTitle) {
+    const firstParagraphIndex = items.findIndex((item) => item.type === "paragraph");
+    if (firstParagraphIndex >= 0) {
+      inferredTitle = items[firstParagraphIndex].text;
+      items.splice(firstParagraphIndex, 1);
+    }
+  }
+
+  return {
+    inferredTitle: inferredTitle || "报告摘要",
+    items: items.length ? items : [{ type: "paragraph", text: inferredTitle || "把报告总结粘贴到左侧，右侧会生成适合手机阅读的长图。" }] as ContentItem[],
+  };
 }
 
 function parseContent(text: string) {
+  if (isMarkdownContent(text)) {
+    return parseMarkdownContent(text);
+  }
+
   const blocks = text
     .split(/\n+/)
     .map((line) => line.trim())
@@ -148,7 +247,8 @@ function parseContent(text: string) {
 
 function App() {
   const [content, setContent] = useState(sampleText);
-  const [title, setTitle] = useState("NVDA - Buy Earnings outlook and agentic AI narrative");
+  const [title, setTitle] = useState("");
+  const [isTitleEdited, setIsTitleEdited] = useState(false);
   const [subtitle, setSubtitle] = useState("HSBC 研报");
   const [watermark, setWatermark] = useState("社会观察从业者");
   const [qrLink, setQrLink] = useState("https://t.zsxq.com/xvVXu");
@@ -186,7 +286,8 @@ function App() {
 
   function resetSample() {
     setContent(sampleText);
-    setTitle("NVDA - Buy Earnings outlook and agentic AI narrative");
+    setTitle("");
+    setIsTitleEdited(false);
     setSubtitle("HSBC 研报");
     setWatermark("社会观察从业者");
     setQrLink("https://t.zsxq.com/xvVXu");
@@ -213,7 +314,14 @@ function App() {
               <Type size={16} />
               标题
             </span>
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="留空时自动使用正文首段" />
+            <input
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                setIsTitleEdited(true);
+              }}
+              placeholder="留空时自动使用正文首段"
+            />
           </label>
 
           <label className="field">
@@ -227,9 +335,24 @@ function App() {
           <label className="field content-field">
             <span>
               <Highlighter size={16} />
-              纯文本内容
+              正文内容
             </span>
-            <textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="粘贴报告总结、会议纪要或投研笔记" />
+            <textarea
+              value={content}
+              onChange={(event) => {
+                const nextContent = event.target.value;
+                const nextParsed = parseContent(nextContent);
+
+                setContent(nextContent);
+                if (!isTitleEdited) {
+                  setTitle("");
+                }
+                if (!isTitleEdited && isMarkdownContent(nextContent) && nextParsed.inferredTitle !== "报告摘要") {
+                  setTitle(nextParsed.inferredTitle);
+                }
+              }}
+              placeholder="粘贴报告总结、会议纪要、Markdown 或投研笔记"
+            />
           </label>
 
           <label className="field">
@@ -291,8 +414,11 @@ function App() {
                 {parsed.items.map((item, index) => {
                   if (item.type === "section") {
                     return (
-                      <section className="section-heading" key={`${item.text}-${index}`}>
-                        <span>{item.number}</span>
+                      <section
+                        className={`section-heading${item.number ? "" : " section-heading--plain"}`}
+                        key={`${item.text}-${index}`}
+                      >
+                        {item.number && <span>{item.number}</span>}
                         <h3>{renderInline(item.text)}</h3>
                       </section>
                     );
@@ -301,7 +427,7 @@ function App() {
                   if (item.type === "bullet") {
                     return (
                       <section className="text-block bullet-block" key={`${item.text}-${index}`}>
-                        <span className="bullet-dot" />
+                        {item.marker ? <span className="bullet-marker">{item.marker}</span> : <span className="bullet-dot" />}
                         <p>{renderInline(item.text)}</p>
                       </section>
                     );
