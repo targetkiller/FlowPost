@@ -168,6 +168,49 @@ function isMarkdownContent(text: string) {
   return /(^|\n)\s*#{1,6}\s+\S/.test(text) || /(^|\n)\s*(?:[-*+]|\d+[.)])\s+\S/.test(text);
 }
 
+const institutionPatterns = [
+  { label: "Morgan Stanley", pattern: /^(?:morgan\s+stanley|ms)\b/i },
+  { label: "GS", pattern: /^(?:goldman\s+sachs|gs)\b/i },
+  { label: "JPM", pattern: /^(?:j\.?\s*p\.?\s*morgan|jp\s*morgan|jpmorgan|jpm)\b/i },
+  { label: "BOFA", pattern: /^(?:bank\s+of\s+america|bofa|bofaml)\b/i },
+  { label: "Barclays", pattern: /^barclays\b/i },
+  { label: "HSBC", pattern: /^hsbc\b/i },
+];
+
+function getMarkdownTitle(text: string) {
+  const titleLine = text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => /^#\s+\S/.test(line));
+
+  return titleLine ? cleanMarkdownText(titleLine) : "";
+}
+
+function inferTitleFields(text: string) {
+  const markdownTitle = getMarkdownTitle(text);
+  if (!markdownTitle) {
+    return { title: "", subtitle: "" };
+  }
+
+  for (const institution of institutionPatterns) {
+    const match = markdownTitle.match(institution.pattern);
+    if (!match) continue;
+
+    const nextTitle = markdownTitle
+      .slice(match[0].length)
+      .replace(/^[\s:：\-–—|]+/, "")
+      .trim();
+
+    return {
+      title: nextTitle || markdownTitle,
+      subtitle: `${institution.label} 研报`,
+    };
+  }
+
+  return { title: markdownTitle, subtitle: "" };
+}
+
 function parseMarkdownContent(text: string) {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const items: ContentItem[] = [];
@@ -311,11 +354,23 @@ function App() {
     if (!cardRef.current) return;
 
     setIsExporting(true);
+    const card = cardRef.current;
     try {
-      const dataUrl = await toPng(cardRef.current, {
+      await document.fonts.ready;
+      card.classList.add("is-exporting");
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+      const { offsetWidth, offsetHeight } = card;
+      const dataUrl = await toPng(card, {
+        width: offsetWidth,
+        height: offsetHeight,
         pixelRatio: 2,
         cacheBust: true,
         backgroundColor: "#ffffff",
+        style: {
+          width: `${offsetWidth}px`,
+          height: `${offsetHeight}px`,
+        },
         filter: (node) => !((node as HTMLElement).dataset?.exportHidden === "true"),
       });
 
@@ -333,6 +388,7 @@ function App() {
         } satisfies FormDraft),
       );
     } finally {
+      card.classList.remove("is-exporting");
       setIsExporting(false);
     }
   }
@@ -362,6 +418,28 @@ function App() {
             </button>
           </div>
 
+          <label className="field content-field">
+            <span>
+              <Highlighter size={16} />
+              正文内容
+            </span>
+            <textarea
+              value={content}
+              onChange={(event) => {
+                const nextContent = normalizeInputText(event.target.value);
+                const nextFields = inferTitleFields(nextContent);
+
+                setContent(nextContent);
+                if (nextFields.title) {
+                  setTitle(nextFields.title);
+                  setIsTitleEdited(false);
+                  setSubtitle(nextFields.subtitle);
+                }
+              }}
+              placeholder="粘贴报告总结、会议纪要、Markdown 或投研笔记"
+            />
+          </label>
+
           <label className="field">
             <span>
               <Type size={16} />
@@ -383,29 +461,6 @@ function App() {
               副标题
             </span>
             <input value={subtitle} onChange={(event) => setSubtitle(event.target.value)} placeholder="显示在标题上方" />
-          </label>
-
-          <label className="field content-field">
-            <span>
-              <Highlighter size={16} />
-              正文内容
-            </span>
-            <textarea
-              value={content}
-              onChange={(event) => {
-                const nextContent = normalizeInputText(event.target.value);
-                const nextParsed = parseContent(nextContent);
-
-                setContent(nextContent);
-                if (!isTitleEdited) {
-                  setTitle("");
-                }
-                if (!isTitleEdited && isMarkdownContent(nextContent) && nextParsed.inferredTitle !== "报告摘要") {
-                  setTitle(nextParsed.inferredTitle);
-                }
-              }}
-              placeholder="粘贴报告总结、会议纪要、Markdown 或投研笔记"
-            />
           </label>
 
           <label className="field">
