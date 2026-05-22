@@ -464,10 +464,6 @@ textarea::placeholder {
   border: 1px solid var(--hairline);
 }
 
-.section-heading--plain {
-  padding-left: 48px;
-}
-
 .section-heading span {
   display: inline-flex;
   flex: 0 0 24px;
