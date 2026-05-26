@@ -173,6 +173,8 @@ const institutionPatterns = [
   { label: "GS", pattern: /^(?:goldman\s+sachs|gs)\b/i },
   { label: "JPM", pattern: /^(?:j\.?\s*p\.?\s*morgan|jp\s*morgan|jpmorgan|jpm)\b/i },
   { label: "BOFA", pattern: /^(?:bank\s+of\s+america|bofa|bofaml)\b/i },
+  { label: "UBS", pattern: /^ubs\b/i },
+  { label: "Deutsche Bank", pattern: /^(?:deutsche\s+bank|db)\b/i },
   { label: "Barclays", pattern: /^barclays\b/i },
   { label: "HSBC", pattern: /^hsbc\b/i },
 ];
