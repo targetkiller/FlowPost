@@ -168,15 +168,29 @@ function isMarkdownContent(text: string) {
   return /(^|\n)\s*#{1,6}\s+\S/.test(text) || /(^|\n)\s*(?:[-*+]|\d+[.)])\s+\S/.test(text);
 }
 
+const leadingInstitutionMarker = String.raw`[\s\[\(（【「『《<]*`;
+const trailingInstitutionMarker = String.raw`[\s\])）】」』》>]*`;
+
+function institutionPattern(source: string) {
+  return new RegExp(`^${leadingInstitutionMarker}(?:${source})${trailingInstitutionMarker}`, "i");
+}
+
 const institutionPatterns = [
-  { label: "Morgan Stanley", pattern: /^(?:morgan\s+stanley|ms)\b/i },
-  { label: "GS", pattern: /^(?:goldman\s+sachs|gs)\b/i },
-  { label: "JPM", pattern: /^(?:j\.?\s*p\.?\s*morgan|jp\s*morgan|jpmorgan|jpm)\b/i },
-  { label: "BOFA", pattern: /^(?:bank\s+of\s+america|bofa|bofaml)\b/i },
-  { label: "UBS", pattern: /^ubs\b/i },
-  { label: "Deutsche Bank", pattern: /^(?:deutsche\s+bank|db)\b/i },
-  { label: "Barclays", pattern: /^barclays\b/i },
-  { label: "HSBC", pattern: /^hsbc\b/i },
+  { label: "Morgan Stanley", pattern: institutionPattern(String.raw`大摩|morgan\s*stanley\b|ms\b`) },
+  { label: "GS", pattern: institutionPattern(String.raw`高盛|goldman\s+sachs\b|gs\b`) },
+  {
+    label: "JPM",
+    pattern: institutionPattern(String.raw`摩根大通|j\.?\s*p\.?\s*morgan\b|jp\s*morgan\b|jpmorgan\b|jpm\b`),
+  },
+  { label: "BOFA", pattern: institutionPattern(String.raw`美银|bank\s+of\s+america\b|bofa\b|bofaml\b`) },
+  { label: "UBS", pattern: institutionPattern(String.raw`瑞银|ubs\b`) },
+  { label: "Deutsche Bank", pattern: institutionPattern(String.raw`德银|deutsche\s+bank\b|deutsche\b|db\b`) },
+  { label: "Bernstein", pattern: institutionPattern(String.raw`伯恩斯坦|bernstein\b`) },
+  { label: "Nomura", pattern: institutionPattern(String.raw`野村|nomura\b`) },
+  { label: "Citi", pattern: institutionPattern(String.raw`花旗|citi\b|citigroup\b`) },
+  { label: "HSBC", pattern: institutionPattern(String.raw`汇丰|hsbc\b`) },
+  { label: "Jefferies", pattern: institutionPattern(String.raw`杰富瑞|jefferies\b`) },
+  { label: "Barclays", pattern: institutionPattern(String.raw`巴克莱|barclays\b`) },
 ];
 
 function getMarkdownTitle(text: string) {
