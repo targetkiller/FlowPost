@@ -9,14 +9,15 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@fontsource/noto-serif-sc": "^5.2.8",
     "@vitejs/plugin-react": "^5.0.0",
     "html-to-image": "^1.11.13",
     "lucide-react": "^0.468.0",
     "qrcode.react": "^4.2.0",
-    "vite": "^6.0.0",
-    "typescript": "^5.7.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.1",
