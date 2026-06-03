@@ -300,9 +300,10 @@ textarea::placeholder {
 
 .generated-overlay img {
   display: block;
-  width: min(100%, 508px);
+  max-width: 100%;
   height: auto;
-  border: 4px solid var(--accent);
+  border: 0;
+  outline: 4px solid var(--accent);
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 18px 42px rgba(23, 33, 28, 0.22);
@@ -326,7 +327,15 @@ textarea::placeholder {
     Helvetica,
     Arial,
     sans-serif;
-  padding: 24px 22px 14px;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "kern" 0,
+    "liga" 0;
+  text-rendering: geometricPrecision;
+  line-break: loose;
+  hanging-punctuation: allow-end;
+  padding: 48px 22px 14px;
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
@@ -370,7 +379,7 @@ textarea::placeholder {
 .watermark-layer span {
   color: var(--watermark);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -390,8 +399,13 @@ textarea::placeholder {
 .share-header p {
   margin: 0 0 6px;
   color: var(--accent);
+  font-family:
+    "SF Pro Text",
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -399,9 +413,9 @@ textarea::placeholder {
 .share-header h2 {
   margin: 0;
   color: var(--ink);
-  font-size: 26px;
-  line-height: 1.18;
-  font-weight: 850;
+  font-size: 27px;
+  line-height: 1.22;
+  font-weight: 800;
 }
 
 .card-date {
@@ -409,22 +423,27 @@ textarea::placeholder {
   top: 2px;
   right: 0;
   color: var(--muted);
+  font-family:
+    "SF Pro Text",
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 1;
 }
 
 .summary-list {
   display: grid;
-  gap: 6px;
-  padding: 14px 0 8px;
+  gap: 8px;
+  padding: 18px 0 10px;
 }
 
 .text-block {
   display: flex;
   gap: 8px;
   align-items: start;
-  padding: 0;
+  padding: 1px 0;
 }
 
 .text-block p {
@@ -435,12 +454,13 @@ textarea::placeholder {
   max-width: 100%;
   margin: 0;
   color: var(--ink);
-  font-size: 15.5px;
-  line-height: 1.58;
+  font-size: 15px;
+  line-height: 1.5;
   font-weight: 400;
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;
+  line-break: loose;
 }
 
 .bullet-dot {
@@ -456,8 +476,8 @@ textarea::placeholder {
   flex: 0 0 auto;
   color: var(--accent);
   font-size: 13px;
-  font-weight: 900;
-  line-height: 1.58;
+  font-weight: 700;
+  line-height: 1.72;
 }
 
 .section-heading {
@@ -494,17 +514,12 @@ textarea::placeholder {
   margin: 0;
   color: var(--ink);
   font-size: 16px;
-  line-height: 1.38;
-  font-weight: 850;
+  line-height: 1.48;
+  font-weight: 600;
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;
-}
-
-.share-card.is-exporting .text-block p,
-.share-card.is-exporting .section-heading h3 {
-  flex-basis: calc(100% - 18px);
-  max-width: calc(100% - 18px);
+  line-break: loose;
 }
 
 mark {
@@ -516,7 +531,7 @@ mark {
 }
 
 strong {
-  font-weight: 850;
+  font-weight: 600;
 }
 
 code {
@@ -533,7 +548,7 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin-top: 0;
+  margin: 10px 0;
   padding: 14px 18px;
   border-radius: 8px;
   color: var(--ink);
@@ -550,14 +565,14 @@ code {
 .footer-copy strong {
   font-size: 15px;
   line-height: 1.35;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .footer-copy span {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .footer-copy time {
@@ -618,7 +633,7 @@ code {
   }
 
   .share-card {
-    padding: 20px 14px 10px;
+    padding: 48px 14px 10px;
   }
 
   .share-header {

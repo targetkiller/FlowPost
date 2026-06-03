@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { toPng } from "html-to-image";
+import { getFontEmbedCSS, toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import {
   X,
@@ -356,6 +356,7 @@ function App() {
   const [footerSubtitle, setFooterSubtitle] = useState(() => storedDraft?.footerSubtitle || "公众号&知识星球");
   const [isExporting, setIsExporting] = useState(false);
   const [generatedImage, setGeneratedImage] = useState("");
+  const [generatedImageWidth, setGeneratedImageWidth] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const parsed = useMemo(() => parseContent(content), [content]);
@@ -371,25 +372,43 @@ function App() {
 
     setIsExporting(true);
     const card = cardRef.current;
+    const previousCardStyle = {
+      width: card.style.width,
+      height: card.style.height,
+      minWidth: card.style.minWidth,
+      maxWidth: card.style.maxWidth,
+      flexBasis: card.style.flexBasis,
+    };
+
     try {
       await document.fonts.ready;
-      card.classList.add("is-exporting");
+      const { width, height } = card.getBoundingClientRect();
+      const exportWidth = Math.ceil(width);
+      const exportHeight = Math.ceil(height);
+      card.style.width = `${exportWidth}px`;
+      card.style.height = `${exportHeight}px`;
+      card.style.minWidth = `${exportWidth}px`;
+      card.style.maxWidth = `${exportWidth}px`;
+      card.style.flexBasis = `${exportWidth}px`;
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const fontEmbedCSS = await getFontEmbedCSS(card, { preferredFontFormat: "woff2" });
 
-      const { offsetWidth, offsetHeight } = card;
       const dataUrl = await toPng(card, {
-        width: offsetWidth,
-        height: offsetHeight,
+        width: exportWidth,
+        height: exportHeight,
         pixelRatio: 2,
         cacheBust: true,
         backgroundColor: "#ffffff",
+        fontEmbedCSS,
+        preferredFontFormat: "woff2",
         style: {
-          width: `${offsetWidth}px`,
-          height: `${offsetHeight}px`,
+          width: `${exportWidth}px`,
+          height: `${exportHeight}px`,
         },
         filter: (node) => !((node as HTMLElement).dataset?.exportHidden === "true"),
       });
 
+      setGeneratedImageWidth(exportWidth);
       setGeneratedImage(dataUrl);
       window.localStorage.setItem(
         storageKey,
@@ -404,7 +423,11 @@ function App() {
         } satisfies FormDraft),
       );
     } finally {
-      card.classList.remove("is-exporting");
+      card.style.width = previousCardStyle.width;
+      card.style.height = previousCardStyle.height;
+      card.style.minWidth = previousCardStyle.minWidth;
+      card.style.maxWidth = previousCardStyle.maxWidth;
+      card.style.flexBasis = previousCardStyle.flexBasis;
       setIsExporting(false);
     }
   }
@@ -581,16 +604,31 @@ function App() {
             <div
               className="generated-overlay theme-ink"
               data-export-hidden="true"
-              onClick={() => setGeneratedImage("")}
+              onClick={() => {
+                setGeneratedImage("");
+                setGeneratedImageWidth(0);
+              }}
             >
-              <img src={generatedImage} alt="生成后的长图" onClick={(event) => event.stopPropagation()} />
+              <img
+                src={generatedImage}
+                alt="生成后的长图"
+                style={generatedImageWidth ? { width: `${generatedImageWidth}px` } : undefined}
+                onClick={(event) => event.stopPropagation()}
+              />
             </div>
           )}
 
           {generatedImage && (
             <div className="generated-toolbar" data-export-hidden="true">
               <span>右键复制或另存为图片</span>
-              <button type="button" onClick={() => setGeneratedImage("")} aria-label="关闭生成图片">
+              <button
+                type="button"
+                onClick={() => {
+                  setGeneratedImage("");
+                  setGeneratedImageWidth(0);
+                }}
+                aria-label="关闭生成图片"
+              >
                 <X size={16} />
               </button>
             </div>
