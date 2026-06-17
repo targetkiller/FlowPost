@@ -1,9 +1,11 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getFontEmbedCSS, toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import {
   X,
+  Activity,
+  FileText,
   Highlighter,
   ImageDown,
   Link,
@@ -15,6 +17,12 @@ import {
 import "./styles.css";
 
 const storageKey = "flowpost:last-input";
+
+type CaptureResult = {
+  dataUrl: string;
+  width: number;
+  height: number;
+};
 
 const sampleText = `财报还能 beat，但市场已经不只买 GPU 增长了
 
@@ -100,10 +108,63 @@ NVDA 的基本面还强，但市场已经从 AI GPU 稀缺性，切到 AI capex 
 
 NVDA 还能 beat，但要再创新高，市场要的不是更好的财报，而是下一个足够大的新叙事。`;
 
+const sampleOptionsText = `期权每日简讯 26/06/17
+
+1/ 容易轧空的票 Gamma Squeeze
+
+GOOG：$369.75
+PFE：$26.05
+CSX：$46.89
+KO：$80.27
+XOM：$141.93
+UBER：$73.32
+ORCL：$186.92
+HOOD：$96.58
+RIVN：$15.90
+MARA：$14.48
+SMCI：$29.38
+SNAP：$5.20
+IREN：$58.69
+ASTS：$83.23
+BABA：$111.17
+
+2/ 高溢价的票 Volatility Risk Premium
+
+WDC：$687.50
+TSM：$427.00
+NBIS：$263.26
+BTDR：$18.25
+AMKR：$88.16
+SNDK：$2,010.60
+NFLX：$78.66
+BB：$9.10
+KEEL：$5.99
+RXT：$6.25
+BE：$281.10
+MRNA：$55.42
+
+结论：
+
+短线动能看： GOOG、HOOD、ORCL、SMCI、RIVN、MARA。
+波动率溢价： BTDR、KEEL、RXT、NFLX、AMKR、SNDK。
+
+注意：期权异动由多种因素决定，不一定是交易决策，只是客观数据，同时波动率高不适合做买方，适合做卖方。`;
+
 type ContentItem =
   | { type: "section"; text: string; number?: string }
   | { type: "paragraph"; text: string }
   | { type: "bullet"; text: string; marker?: string };
+
+type TemplateMode = "research" | "options";
+
+type OptionsBrief = {
+  title: string;
+  squeeze: Array<{ ticker: string; price: string }>;
+  vrp: Array<{ ticker: string; price: string }>;
+  momentum: string[];
+  premium: string[];
+  note: string;
+};
 
 type FormDraft = {
   content: string;
@@ -113,6 +174,7 @@ type FormDraft = {
   qrLink: string;
   footerText: string;
   footerSubtitle: string;
+  templateMode: TemplateMode;
 };
 
 function normalizeInputText(text: string) {
@@ -133,6 +195,7 @@ function readStoredDraft() {
       qrLink: parsed.qrLink || "https://t.zsxq.com/xvVXu",
       footerText: parsed.footerText || "社会观察从业者",
       footerSubtitle: parsed.footerSubtitle || "公众号&知识星球",
+      templateMode: parsed.templateMode === "options" ? "options" : "research",
     } satisfies FormDraft;
   } catch {
     return null;
@@ -344,8 +407,124 @@ function parseContent(text: string) {
   };
 }
 
+function parseTickerLine(line: string) {
+  const match = line.match(/^([A-Z][A-Z0-9.\-]{0,7})\s*[：:]\s*(\$?[\d,]+(?:\.\d+)?)/);
+  if (!match) return null;
+
+  return {
+    ticker: match[1],
+    price: match[2].startsWith("$") ? match[2] : `$${match[2]}`,
+  };
+}
+
+function parseTickerList(text: string) {
+  return text
+    .split(/[、,，\s]+/)
+    .map((item) => item.replace(/[。.;；]/g, "").trim())
+    .filter(Boolean);
+}
+
+function stripOptionsTitleDate(text: string) {
+  return text
+    .replace(/\s+\d{2,4}[/-]\d{1,2}[/-]\d{1,2}\s*$/, "")
+    .replace(/\s+\d{2,4}年\d{1,2}月\d{1,2}日\s*$/, "")
+    .trim();
+}
+
+function parseOptionsBrief(text: string): OptionsBrief {
+  const lines = normalizeInputText(text)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  let section: "squeeze" | "vrp" | "conclusion" | null = null;
+  const squeeze: OptionsBrief["squeeze"] = [];
+  const vrp: OptionsBrief["vrp"] = [];
+  let momentum: string[] = [];
+  let premium: string[] = [];
+  let note = "";
+
+  for (const line of lines) {
+    if (/Gamma\s*Squeeze|容易轧空/.test(line)) {
+      section = "squeeze";
+      continue;
+    }
+
+    if (/Volatility\s*Risk\s*Premium|高溢价/.test(line)) {
+      section = "vrp";
+      continue;
+    }
+
+    if (/^结论/.test(line)) {
+      section = "conclusion";
+      continue;
+    }
+
+    if (/^注意/.test(line)) {
+      note = line;
+      continue;
+    }
+
+    const ticker = parseTickerLine(line);
+    if (ticker && section === "squeeze") {
+      squeeze.push(ticker);
+      continue;
+    }
+
+    if (ticker && section === "vrp") {
+      vrp.push(ticker);
+      continue;
+    }
+
+    const momentumMatch = line.match(/^短线动能看[：:]\s*(.+)$/);
+    if (momentumMatch) {
+      momentum = parseTickerList(momentumMatch[1]);
+      continue;
+    }
+
+    const premiumMatch = line.match(/^波动率溢价[：:]\s*(.+)$/);
+    if (premiumMatch) {
+      premium = parseTickerList(premiumMatch[1]);
+    }
+  }
+
+  return {
+    title: stripOptionsTitleDate(lines.find((line) => /^期权每日简讯/.test(line)) || "期权每日简讯"),
+    squeeze,
+    vrp,
+    momentum,
+    premium,
+    note:
+      note ||
+      "注意：期权异动由多种因素决定，不一定是交易决策，只是客观数据，同时波动率高不适合做买方，适合做卖方。",
+  };
+}
+
+function OptionsTickerGrid({ items, tone = "squeeze" }: { items: Array<{ ticker: string; price: string }>; tone?: "squeeze" | "premium" }) {
+  return (
+    <div className={`options-ticker-grid options-ticker-grid--${tone}`}>
+      {items.map((item) => (
+        <div className="options-ticker" key={`${item.ticker}-${item.price}`}>
+          <strong>{item.ticker}</strong>
+          <span>{item.price}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OptionsFocusList({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="options-focus-row">
+      <span>{label}</span>
+      <p>{items.length ? items.join("、") : "等待数据"}</p>
+    </div>
+  );
+}
+
 function App() {
   const storedDraft = useMemo(() => readStoredDraft(), []);
+  const [templateMode, setTemplateMode] = useState<TemplateMode>(() => storedDraft?.templateMode || "research");
   const [content, setContent] = useState(() => storedDraft?.content || normalizeInputText(sampleText));
   const [title, setTitle] = useState(() => storedDraft?.title || "");
   const [isTitleEdited, setIsTitleEdited] = useState(() => Boolean(storedDraft?.title));
@@ -357,9 +536,10 @@ function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [generatedImage, setGeneratedImage] = useState("");
   const [generatedImageWidth, setGeneratedImageWidth] = useState(0);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLElement>(null);
 
   const parsed = useMemo(() => parseContent(content), [content]);
+  const optionsBrief = useMemo(() => parseOptionsBrief(content), [content]);
   const displayTitle = title.trim() || parsed.inferredTitle;
   const dateLabel = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -367,10 +547,27 @@ function App() {
     day: "2-digit",
   }).format(new Date());
 
-  async function generateImage() {
-    if (!cardRef.current) return;
+  function saveDraft() {
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        content: normalizeInputText(content),
+        title,
+        subtitle,
+        watermark,
+        qrLink,
+        footerText,
+        footerSubtitle,
+        templateMode,
+      } satisfies FormDraft),
+    );
+  }
 
-    setIsExporting(true);
+  async function captureShareCard(): Promise<CaptureResult> {
+    if (!cardRef.current) {
+      throw new Error("Share card is not ready.");
+    }
+
     const card = cardRef.current;
     const previousCardStyle = {
       width: card.style.width,
@@ -408,39 +605,76 @@ function App() {
         filter: (node) => !((node as HTMLElement).dataset?.exportHidden === "true"),
       });
 
-      setGeneratedImageWidth(exportWidth);
-      setGeneratedImage(dataUrl);
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          content: normalizeInputText(content),
-          title,
-          subtitle,
-          watermark,
-          qrLink,
-          footerText,
-          footerSubtitle,
-        } satisfies FormDraft),
-      );
+      return { dataUrl, width: exportWidth, height: exportHeight };
     } finally {
       card.style.width = previousCardStyle.width;
       card.style.height = previousCardStyle.height;
       card.style.minWidth = previousCardStyle.minWidth;
       card.style.maxWidth = previousCardStyle.maxWidth;
       card.style.flexBasis = previousCardStyle.flexBasis;
+    }
+  }
+
+  async function generateImage() {
+    setIsExporting(true);
+
+    try {
+      const result = await captureShareCard();
+
+      setGeneratedImageWidth(result.width);
+      setGeneratedImage(result.dataUrl);
+      saveDraft();
+    } finally {
       setIsExporting(false);
     }
   }
 
+  useEffect(() => {
+    const api = window as typeof window & {
+      __flowPostCaptureShareCard?: () => Promise<CaptureResult>;
+    };
+
+    api.__flowPostCaptureShareCard = async () => {
+      const result = await captureShareCard();
+
+      setGeneratedImageWidth(result.width);
+      setGeneratedImage(result.dataUrl);
+      saveDraft();
+
+      return result;
+    };
+
+    return () => {
+      delete api.__flowPostCaptureShareCard;
+    };
+  });
+
   function resetSample() {
-    setContent(normalizeInputText(sampleText));
+    setContent(normalizeInputText(templateMode === "options" ? sampleOptionsText : sampleText));
     setTitle("");
     setIsTitleEdited(false);
-    setSubtitle("");
+    setSubtitle(templateMode === "options" ? "Options Daily Brief" : "");
     setWatermark("社会观察从业者");
     setQrLink("https://t.zsxq.com/xvVXu");
     setFooterText("社会观察从业者");
     setFooterSubtitle("公众号&知识星球");
+  }
+
+  function switchTemplate(nextMode: TemplateMode) {
+    setTemplateMode(nextMode);
+
+    if (nextMode === "options") {
+      setContent(normalizeInputText(sampleOptionsText));
+      setTitle("");
+      setIsTitleEdited(false);
+      setSubtitle("Options Daily Brief");
+      return;
+    }
+
+    setContent(normalizeInputText(sampleText));
+    setTitle("");
+    setIsTitleEdited(false);
+    setSubtitle("");
   }
 
   return (
@@ -454,6 +688,25 @@ function App() {
             </div>
             <button className="icon-button" type="button" onClick={resetSample} aria-label="重置示例">
               <RotateCcw size={18} />
+            </button>
+          </div>
+
+          <div className="template-switch" aria-label="选择模板">
+            <button
+              className={templateMode === "research" ? "is-active" : ""}
+              type="button"
+              onClick={() => switchTemplate("research")}
+            >
+              <FileText size={16} />
+              研报
+            </button>
+            <button
+              className={templateMode === "options" ? "is-active" : ""}
+              type="button"
+              onClick={() => switchTemplate("options")}
+            >
+              <Activity size={16} />
+              期权
             </button>
           </div>
 
@@ -542,51 +795,107 @@ function App() {
 
         <section className="preview-stage">
           <div className="phone-frame">
-            <article className="share-card theme-ink" ref={cardRef}>
+            <article className={`share-card ${templateMode === "options" ? "theme-options options-card" : "theme-ink"}`} ref={cardRef}>
               <div className="watermark-layer" aria-hidden="true">
                 {Array.from({ length: 40 }).map((_, index) => (
                   <span key={index}>{watermark}</span>
                 ))}
               </div>
 
-              <header className="share-header">
-                <div>
-                  <p>{subtitle || "华尔街研报"}</p>
-                  <h2>{displayTitle}</h2>
-                </div>
-                <time className="card-date">{dateLabel}</time>
-              </header>
+              {templateMode === "options" ? (
+                <>
+                  <header className="share-header options-header">
+                    <div>
+                      <p>{subtitle || "Options Daily Brief"}</p>
+                      <h2>{title.trim() || optionsBrief.title}</h2>
+                    </div>
+                    <time className="card-date">{dateLabel}</time>
+                  </header>
 
-              <div className="summary-list">
-                {parsed.items.map((item, index) => {
-                  if (item.type === "section") {
-                    return (
-                      <section
-                        className={`section-heading${item.number ? "" : " section-heading--plain"}`}
-                        key={`${item.text}-${index}`}
-                      >
-                        {item.number && <span>{item.number}</span>}
-                        <h3>{renderInline(item.text)}</h3>
-                      </section>
-                    );
-                  }
+                  <div className="options-market-strip">
+                    <div>
+                      <span>Gamma Squeeze</span>
+                      <strong>{optionsBrief.squeeze.length}</strong>
+                    </div>
+                    <div>
+                      <span>Volatility Premium</span>
+                      <strong>{optionsBrief.vrp.length}</strong>
+                    </div>
+                  </div>
 
-                  if (item.type === "bullet") {
-                    return (
-                      <section className="text-block bullet-block" key={`${item.text}-${index}`}>
-                        {item.marker ? <span className="bullet-marker">{item.marker}</span> : <span className="bullet-dot" />}
-                        <p>{renderInline(item.text)}</p>
-                      </section>
-                    );
-                  }
-
-                  return (
-                    <section className="text-block" key={`${item.text}-${index}`}>
-                      <p>{renderInline(item.text)}</p>
+                  <div className="options-summary-list">
+                    <section className="options-section">
+                      <div className="options-section-title">
+                        <span>01</span>
+                        <h3>容易轧空的票</h3>
+                        <p>Gamma Squeeze</p>
+                      </div>
+                      <OptionsTickerGrid items={optionsBrief.squeeze} tone="squeeze" />
                     </section>
-                  );
-                })}
-              </div>
+
+                    <section className="options-section">
+                      <div className="options-section-title options-section-title--premium">
+                        <span>02</span>
+                        <h3>高溢价的票</h3>
+                        <p>Volatility Risk Premium</p>
+                      </div>
+                      <OptionsTickerGrid items={optionsBrief.vrp} tone="premium" />
+                    </section>
+
+                    <section className="options-conclusion">
+                      <h3>结论</h3>
+                      <OptionsFocusList label="短线动能看" items={optionsBrief.momentum} />
+                      <OptionsFocusList label="波动率溢价" items={optionsBrief.premium} />
+                    </section>
+
+                    <section className="options-risk-note">
+                      <p>{optionsBrief.note}</p>
+                      <span>Source: SpotGamma</span>
+                    </section>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <header className="share-header">
+                    <div>
+                      <p>{subtitle || "华尔街研报"}</p>
+                      <h2>{displayTitle}</h2>
+                    </div>
+                    <time className="card-date">{dateLabel}</time>
+                  </header>
+
+                  <div className="summary-list">
+                    {parsed.items.map((item, index) => {
+                      if (item.type === "section") {
+                        return (
+                          <section
+                            className={`section-heading${item.number ? "" : " section-heading--plain"}`}
+                            key={`${item.text}-${index}`}
+                          >
+                            {item.number && <span>{item.number}</span>}
+                            <h3>{renderInline(item.text)}</h3>
+                          </section>
+                        );
+                      }
+
+                      if (item.type === "bullet") {
+                        return (
+                          <section className="text-block bullet-block" key={`${item.text}-${index}`}>
+                            {item.marker ? <span className="bullet-marker">{item.marker}</span> : <span className="bullet-dot" />}
+                            <p>{renderInline(item.text)}</p>
+                          </section>
+                        );
+                      }
+
+                      return (
+                        <section className="text-block" key={`${item.text}-${index}`}>
+                          <p>{renderInline(item.text)}</p>
+                        </section>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
 
               <footer className="share-footer">
                 <div className="footer-copy">
