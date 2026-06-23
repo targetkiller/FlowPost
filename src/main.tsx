@@ -12,6 +12,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Target as TargetIcon,
   Type,
 } from "lucide-react";
 import "./styles.css";
@@ -150,12 +151,51 @@ MRNA：$55.42
 
 注意：期权异动由多种因素决定，不一定是交易决策，只是客观数据，同时波动率高不适合做买方，适合做卖方。`;
 
+const sampleTargetPriceText = `# 热门股 Buy Dip 三档区间
+
+数据日期：股票多数为 Nasdaq 日线至 2026-06-22；DRAM/FOTO/RACK 为 IBKR 延迟日线至 2026-06-22。
+
+模型：\`undervaluation-buy-zone\` 三档逻辑。
+
+- 首仓区：强趋势回调的小仓 / 试探区
+- 标准低估区：主要 buy-dip 区
+- 深度低估区：恐慌或重仓区，需要确认基本面没有破坏
+
+> 本表为规则化风险回报参考，不构成投资建议。
+
+## 重点分组
+
+| 分组 | 标的 |
+|---|---|
+| 深度区 | MSFT |
+| 标准区 | GOOG, TSLA |
+| 首仓区 | AAPL, LITE, FOTO, QCOM |
+| 标准/深度之间 | META, AMZN, ORCL, CRWV, AVGO, CEG |
+| 未到 | MU, AMD, MRVL, DRAM, RACK, NBIS, INTC, BE, VRT, ETN |
+
+## 完整表格
+
+| Ticker | 现价 | RSI | 首仓区 | 标准低估区 | 深度低估区 | 状态 |
+|---|---:|---:|---:|---:|---:|---|
+| NVDA | 208.65 | 48.7 | 209.65-217.62 | 195.42-208.16 | 146.82-162.75 | 首仓/标准之间 |
+| GOOG | 348.78 | 40.0 | 360.67-373.75 | 343.35-364.05 | 279.39-305.26 | 标准区 |
+| META | 563.85 | 39.4 | 706.91-732.55 | 662.16-700.70 | 457.82-501.11 | 标准/深度之间 |
+| AMZN | 232.79 | 36.5 | 250.16-259.24 | 239.03-252.95 | 200.50-217.28 | 标准/深度之间 |
+| MSFT | 367.34 | 30.9 | 493.13-511.01 | 461.91-488.80 | 339.79-367.34 | 深度区 |
+| AAPL | 297.01 | 49.9 | 290.45-300.98 | 273.27-289.18 | 214.29-231.67 | 首仓区 |
+| TSLA | 405.05 | 48.9 | 426.89-448.95 | 385.92-419.02 | 271.82-315.94 | 标准区 |
+
+## 备注
+
+- \`标准/深度之间\`：价格已经跌穿标准低估区，但还未进入深度区，需要检查基本面、财报、指引、监管、流动性或行业事件。
+- \`未到\`：价格仍高于首仓区上沿，按模型暂不属于 buy-dip 区间。`;
+
 type ContentItem =
   | { type: "section"; text: string; number?: string }
   | { type: "paragraph"; text: string }
   | { type: "bullet"; text: string; marker?: string };
 
-type TemplateMode = "research" | "options";
+type TemplateMode = "research" | "options" | "targetPrice";
 
 type OptionsBrief = {
   title: string;
@@ -164,6 +204,17 @@ type OptionsBrief = {
   momentum: string[];
   premium: string[];
   note: string;
+};
+
+type TargetPriceBrief = {
+  title: string;
+  dateLine: string;
+  modelLine: string;
+  rules: string[];
+  disclaimer: string;
+  groups: Array<{ group: string; tickers: string }>;
+  rows: Array<Record<string, string>>;
+  notes: string[];
 };
 
 type FormDraft = {
@@ -195,7 +246,7 @@ function readStoredDraft() {
       qrLink: parsed.qrLink || "https://t.zsxq.com/xvVXu",
       footerText: parsed.footerText || "社会观察从业者",
       footerSubtitle: parsed.footerSubtitle || "公众号&知识星球",
-      templateMode: parsed.templateMode === "options" ? "options" : "research",
+      templateMode: parsed.templateMode === "options" || parsed.templateMode === "targetPrice" ? parsed.templateMode : "research",
     } satisfies FormDraft;
   } catch {
     return null;
@@ -500,6 +551,69 @@ function parseOptionsBrief(text: string): OptionsBrief {
   };
 }
 
+function parseMarkdownTable(lines: string[], heading: string) {
+  const headingIndex = lines.findIndex((line) => cleanMarkdownText(line.trim()) === heading);
+  if (headingIndex < 0) return { headers: [] as string[], rows: [] as string[][] };
+
+  const tableLines: string[] = [];
+  for (let index = headingIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (/^#{1,6}\s+/.test(line) && tableLines.length) break;
+    if (line.startsWith("|")) tableLines.push(line);
+  }
+
+  const rows = tableLines
+    .filter((line) => !/^\|\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$/.test(line))
+    .map((line) =>
+      line
+        .replace(/^\||\|$/g, "")
+        .split("|")
+        .map((cell) => cleanMarkdownText(cell.trim())),
+    );
+
+  const [headers = [], ...body] = rows;
+  return { headers, rows: body };
+}
+
+function parseTargetPriceBrief(text: string): TargetPriceBrief {
+  const lines = normalizeInputText(text).split("\n");
+  const trimmed = lines.map((line) => line.trim());
+  const title = cleanMarkdownText(trimmed.find((line) => /^#\s+/.test(line)) || "热门股 Buy Dip 三档区间");
+  const dateLine = trimmed.find((line) => /^数据日期/.test(line)) || "数据日期：等待更新";
+  const modelLine = trimmed.find((line) => /^模型/.test(line)) || "模型：undervaluation-buy-zone 三档逻辑。";
+  const disclaimer = trimmed.find((line) => /^>\s*/.test(line))?.replace(/^>\s*/, "") || "本表为规则化风险回报参考，不构成投资建议。";
+  const rules = trimmed
+    .filter((line) => /^[-*+]\s+/.test(line))
+    .slice(0, 3)
+    .map((line) => cleanMarkdownText(line.replace(/^[-*+]\s+/, "")));
+  const groupsTable = parseMarkdownTable(lines, "重点分组");
+  const fullTable = parseMarkdownTable(lines, "完整表格");
+  const notesStart = trimmed.findIndex((line) => cleanMarkdownText(line) === "备注");
+  const notes =
+    notesStart >= 0
+      ? trimmed
+          .slice(notesStart + 1)
+          .filter((line) => /^[-*+]\s+/.test(line))
+          .map((line) => cleanMarkdownText(line.replace(/^[-*+]\s+/, "")))
+      : [];
+
+  return {
+    title,
+    dateLine,
+    modelLine,
+    rules,
+    disclaimer,
+    groups: groupsTable.rows.map(([group = "", tickers = ""]) => ({ group, tickers })),
+    rows: fullTable.rows.map((row) =>
+      fullTable.headers.reduce<Record<string, string>>((record, header, index) => {
+        record[header] = row[index] || "";
+        return record;
+      }, {}),
+    ),
+    notes,
+  };
+}
+
 function OptionsTickerGrid({ items, tone = "squeeze" }: { items: Array<{ ticker: string; price: string }>; tone?: "squeeze" | "premium" }) {
   return (
     <div className={`options-ticker-grid options-ticker-grid--${tone}`}>
@@ -522,6 +636,14 @@ function OptionsFocusList({ label, items }: { label: string; items: string[] }) 
   );
 }
 
+function getTargetStatusClass(status: string) {
+  if (/深度/.test(status)) return "target-status target-status--deep";
+  if (/标准/.test(status)) return "target-status target-status--standard";
+  if (/首仓/.test(status)) return "target-status target-status--starter";
+  if (/未到/.test(status)) return "target-status target-status--wait";
+  return "target-status";
+}
+
 function App() {
   const storedDraft = useMemo(() => readStoredDraft(), []);
   const [templateMode, setTemplateMode] = useState<TemplateMode>(() => storedDraft?.templateMode || "research");
@@ -540,6 +662,7 @@ function App() {
 
   const parsed = useMemo(() => parseContent(content), [content]);
   const optionsBrief = useMemo(() => parseOptionsBrief(content), [content]);
+  const targetPriceBrief = useMemo(() => parseTargetPriceBrief(content), [content]);
   const displayTitle = title.trim() || parsed.inferredTitle;
   const dateLabel = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -650,10 +773,12 @@ function App() {
   });
 
   function resetSample() {
-    setContent(normalizeInputText(templateMode === "options" ? sampleOptionsText : sampleText));
+    const nextContent =
+      templateMode === "options" ? sampleOptionsText : templateMode === "targetPrice" ? sampleTargetPriceText : sampleText;
+    setContent(normalizeInputText(nextContent));
     setTitle("");
     setIsTitleEdited(false);
-    setSubtitle(templateMode === "options" ? "Options Daily Brief" : "");
+    setSubtitle(templateMode === "options" ? "Options Daily Brief" : templateMode === "targetPrice" ? "Target Price" : "");
     setWatermark("社会观察从业者");
     setQrLink("https://t.zsxq.com/xvVXu");
     setFooterText("社会观察从业者");
@@ -668,6 +793,14 @@ function App() {
       setTitle("");
       setIsTitleEdited(false);
       setSubtitle("Options Daily Brief");
+      return;
+    }
+
+    if (nextMode === "targetPrice") {
+      setContent(normalizeInputText(sampleTargetPriceText));
+      setTitle("");
+      setIsTitleEdited(false);
+      setSubtitle("Target Price");
       return;
     }
 
@@ -707,6 +840,14 @@ function App() {
             >
               <Activity size={16} />
               期权
+            </button>
+            <button
+              className={templateMode === "targetPrice" ? "is-active" : ""}
+              type="button"
+              onClick={() => switchTemplate("targetPrice")}
+            >
+              <TargetIcon size={16} />
+              目标价
             </button>
           </div>
 
@@ -795,7 +936,16 @@ function App() {
 
         <section className="preview-stage">
           <div className="phone-frame">
-            <article className={`share-card ${templateMode === "options" ? "theme-options options-card" : "theme-ink"}`} ref={cardRef}>
+            <article
+              className={`share-card ${
+                templateMode === "options"
+                  ? "theme-options options-card"
+                  : templateMode === "targetPrice"
+                    ? "theme-target target-card"
+                    : "theme-ink"
+              }`}
+              ref={cardRef}
+            >
               <div className="watermark-layer" aria-hidden="true">
                 {Array.from({ length: 40 }).map((_, index) => (
                   <span key={index}>{watermark}</span>
@@ -853,6 +1003,84 @@ function App() {
                       <span>Source: SpotGamma</span>
                     </section>
                   </div>
+                </>
+              ) : templateMode === "targetPrice" ? (
+                <>
+                  <header className="share-header target-header">
+                    <div>
+                      <p>{subtitle || "Target Price"}</p>
+                      <h2>{title.trim() || targetPriceBrief.title}</h2>
+                    </div>
+                    <time className="card-date">{dateLabel}</time>
+                  </header>
+
+                  <div className="target-meta">
+                    <p>{targetPriceBrief.dateLine}</p>
+                    <p>{targetPriceBrief.modelLine}</p>
+                  </div>
+
+                  <div className="target-rule-grid">
+                    {(targetPriceBrief.rules.length ? targetPriceBrief.rules : ["首仓区：试探区", "标准低估区：主要 buy-dip 区", "深度低估区：恐慌区"]).map(
+                      (rule) => {
+                        const [label, ...description] = rule.split(/[:：]/);
+                        return (
+                          <div className="target-rule" key={rule}>
+                            <strong>{label}</strong>
+                            <span>{description.join("：") || rule}</span>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+
+                  <section className="target-groups">
+                    <h3>重点分组</h3>
+                    {targetPriceBrief.groups.map((group) => (
+                      <div className="target-group-row" key={group.group}>
+                        <span className={getTargetStatusClass(group.group)}>{group.group}</span>
+                        <p>{group.tickers}</p>
+                      </div>
+                    ))}
+                  </section>
+
+                  <section className="target-table-wrap">
+                    <h3>完整表格</h3>
+                    <table className="target-table">
+                      <thead>
+                        <tr>
+                          <th>Ticker</th>
+                          <th>现价</th>
+                          <th>RSI</th>
+                          <th>首仓区</th>
+                          <th>标准区</th>
+                          <th>深度区</th>
+                          <th>状态</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {targetPriceBrief.rows.map((row) => (
+                          <tr key={`${row.Ticker}-${row["现价"]}`}>
+                            <td className="target-ticker">{row.Ticker}</td>
+                            <td>{row["现价"]}</td>
+                            <td>{row.RSI}</td>
+                            <td>{row["首仓区"]}</td>
+                            <td>{row["标准低估区"]}</td>
+                            <td>{row["深度低估区"]}</td>
+                            <td>
+                              <span className={getTargetStatusClass(row["状态"])}>{row["状态"]}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </section>
+
+                  <section className="target-risk-note">
+                    <p>{targetPriceBrief.disclaimer}</p>
+                    {targetPriceBrief.notes.slice(0, 2).map((note) => (
+                      <span key={note}>{note}</span>
+                    ))}
+                  </section>
                 </>
               ) : (
                 <>
