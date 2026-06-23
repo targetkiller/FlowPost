@@ -128,7 +128,7 @@ IREN：$58.69
 ASTS：$83.23
 BABA：$111.17
 
-2/ 高溢价的票 Volatility Risk Premium
+2/ 高波动率溢价的票 Volatility Risk Premium
 
 WDC：$687.50
 TSM：$427.00
@@ -450,7 +450,7 @@ function parseOptionsBrief(text: string): OptionsBrief {
       continue;
     }
 
-    if (/Volatility\s*Risk\s*Premium|高溢价/.test(line)) {
+    if (/Volatility\s*Risk\s*Premium|高溢价|高波动率\s*(?:IV|溢价)/.test(line)) {
       section = "vrp";
       continue;
     }
@@ -836,7 +836,7 @@ function App() {
                     <section className="options-section">
                       <div className="options-section-title options-section-title--premium">
                         <span>02</span>
-                        <h3>高溢价的票</h3>
+                        <h3>高波动率溢价的票</h3>
                         <p>Volatility Risk Premium</p>
                       </div>
                       <OptionsTickerGrid items={optionsBrief.vrp} tone="premium" />
