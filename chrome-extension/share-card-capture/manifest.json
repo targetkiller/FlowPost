@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Share Card Capture",
+  "description": "One-click PNG export for .article.share-card elements.",
+  "version": "0.1.0",
+  "permissions": ["activeTab", "downloads", "scripting"],
+  "action": {
+    "default_title": "Capture share card"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

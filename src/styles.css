@@ -482,7 +482,6 @@ textarea::placeholder {
 .share-header {
   position: relative;
   padding: 2px 0 14px;
-  border-bottom: 1px solid var(--accent-line);
 }
 
 .share-header p {
@@ -761,31 +760,12 @@ textarea::placeholder {
   text-transform: uppercase;
 }
 
-.target-meta,
 .target-rule-grid,
 .target-groups,
 .target-table-wrap,
 .target-risk-note {
   position: relative;
   z-index: 1;
-}
-
-.target-meta {
-  display: grid;
-  gap: 5px;
-  margin: 12px 0 10px;
-  padding: 10px 11px;
-  border: 1px solid rgba(179, 107, 24, 0.14);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.target-meta p {
-  margin: 0;
-  color: rgba(30, 26, 20, 0.72);
-  font-size: 11px;
-  line-height: 1.42;
-  font-weight: 700;
 }
 
 .target-rule-grid {

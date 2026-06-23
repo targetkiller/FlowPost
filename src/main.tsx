@@ -208,8 +208,6 @@ type OptionsBrief = {
 
 type TargetPriceBrief = {
   title: string;
-  dateLine: string;
-  modelLine: string;
   rules: string[];
   disclaimer: string;
   groups: Array<{ group: string; tickers: string }>;
@@ -579,8 +577,6 @@ function parseTargetPriceBrief(text: string): TargetPriceBrief {
   const lines = normalizeInputText(text).split("\n");
   const trimmed = lines.map((line) => line.trim());
   const title = cleanMarkdownText(trimmed.find((line) => /^#\s+/.test(line)) || "热门股 Buy Dip 三档区间");
-  const dateLine = trimmed.find((line) => /^数据日期/.test(line)) || "数据日期：等待更新";
-  const modelLine = trimmed.find((line) => /^模型/.test(line)) || "模型：undervaluation-buy-zone 三档逻辑。";
   const disclaimer = trimmed.find((line) => /^>\s*/.test(line))?.replace(/^>\s*/, "") || "本表为规则化风险回报参考，不构成投资建议。";
   const rules = trimmed
     .filter((line) => /^[-*+]\s+/.test(line))
@@ -599,8 +595,6 @@ function parseTargetPriceBrief(text: string): TargetPriceBrief {
 
   return {
     title,
-    dateLine,
-    modelLine,
     rules,
     disclaimer,
     groups: groupsTable.rows.map(([group = "", tickers = ""]) => ({ group, tickers })),
@@ -1013,11 +1007,6 @@ function App() {
                     </div>
                     <time className="card-date">{dateLabel}</time>
                   </header>
-
-                  <div className="target-meta">
-                    <p>{targetPriceBrief.dateLine}</p>
-                    <p>{targetPriceBrief.modelLine}</p>
-                  </div>
 
                   <div className="target-rule-grid">
                     {(targetPriceBrief.rules.length ? targetPriceBrief.rules : ["首仓区：试探区", "标准低估区：主要 buy-dip 区", "深度低估区：恐慌区"]).map(
