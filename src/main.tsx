@@ -1,9 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createRoot } from "react-dom/client";
 import { getFontEmbedCSS, toPng } from "html-to-image";
-import { QRCodeSVG } from "qrcode.react";
 import {
-  X,
   Activity,
   FileText,
   Highlighter,
@@ -14,7 +10,11 @@ import {
   Sparkles,
   Target as TargetIcon,
   Type,
+  X,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const storageKey = "flowpost:last-input";
@@ -994,7 +994,7 @@ function App() {
 
                     <section className="options-risk-note">
                       <p>{optionsBrief.note}</p>
-                      <span>Source: SpotGamma</span>
+                      <span>Source: VolRadar & Nasdaq</span>
                     </section>
                   </div>
                 </>
