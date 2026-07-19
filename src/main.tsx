@@ -193,7 +193,13 @@ const sampleTargetPriceText = `# 热门股 Buy Dip 三档区间
 type ContentItem =
   | { type: "section"; text: string; number?: string }
   | { type: "paragraph"; text: string }
-  | { type: "bullet"; text: string; marker?: string };
+  | { type: "bullet"; text: string; marker?: string }
+  | {
+      type: "table";
+      headers: string[];
+      rows: string[][];
+      alignments: Array<"left" | "center" | "right">;
+    };
 
 type TemplateMode = "research" | "options" | "targetPrice";
 
@@ -277,7 +283,63 @@ function cleanMarkdownText(text: string) {
 }
 
 function isMarkdownContent(text: string) {
-  return /(^|\n)\s*#{1,6}\s+\S/.test(text) || /(^|\n)\s*(?:[-*+]|\d+[.)])\s+\S/.test(text);
+  if (/(^|\n)\s*#{1,6}\s+\S/.test(text) || /(^|\n)\s*(?:[-*+]|\d+[.)])\s+\S/.test(text)) {
+    return true;
+  }
+
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  return lines.some((line, index) => line.includes("|") && isMarkdownTableDivider(lines[index + 1] || ""));
+}
+
+function splitMarkdownTableRow(line: string) {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  const cells: string[] = [];
+  let cell = "";
+  let escaped = false;
+  let inCode = false;
+
+  for (const character of trimmed) {
+    if (escaped) {
+      cell += character;
+      escaped = false;
+      continue;
+    }
+
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (character === "`") {
+      inCode = !inCode;
+      cell += character;
+      continue;
+    }
+
+    if (character === "|" && !inCode) {
+      cells.push(cell.trim());
+      cell = "";
+      continue;
+    }
+
+    cell += character;
+  }
+
+  cells.push(cell.trim());
+  return cells;
+}
+
+function isMarkdownTableDivider(line: string) {
+  if (!line.includes("|")) return false;
+  const cells = splitMarkdownTableRow(line);
+  return cells.length > 1 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s/g, "")));
+}
+
+function getMarkdownTableAlignment(cell: string): "left" | "center" | "right" {
+  const marker = cell.replace(/\s/g, "");
+  if (marker.startsWith(":") && marker.endsWith(":")) return "center";
+  if (marker.endsWith(":")) return "right";
+  return "left";
 }
 
 const leadingInstitutionMarker = String.raw`[\s\[\(（【「『《<]*`;
@@ -353,12 +415,36 @@ function parseMarkdownContent(text: string) {
     paragraphLines.length = 0;
   }
 
-  lines.forEach((rawLine) => {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex];
     const line = rawLine.trim();
 
     if (!line) {
       flushParagraph();
-      return;
+      continue;
+    }
+
+    if (line.includes("|") && isMarkdownTableDivider(lines[lineIndex + 1] || "")) {
+      flushParagraph();
+      const headers = splitMarkdownTableRow(line).map((cell) => cell.trim());
+      const alignments = splitMarkdownTableRow(lines[lineIndex + 1]).map(getMarkdownTableAlignment);
+      const rows: string[][] = [];
+      lineIndex += 2;
+
+      while (lineIndex < lines.length && lines[lineIndex].trim().includes("|")) {
+        const row = splitMarkdownTableRow(lines[lineIndex]).map((cell) => cell.trim());
+        rows.push(headers.map((_, cellIndex) => row[cellIndex] || ""));
+        lineIndex += 1;
+      }
+
+      items.push({
+        type: "table",
+        headers,
+        rows,
+        alignments: headers.map((_, cellIndex) => alignments[cellIndex] || "left"),
+      });
+      lineIndex -= 1;
+      continue;
     }
 
     const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*$/);
@@ -369,38 +455,39 @@ function parseMarkdownContent(text: string) {
 
       if (level === 1 && !inferredTitle) {
         inferredTitle = headingText;
-        return;
+        continue;
       }
 
       items.push({ type: "section", text: headingText });
-      return;
+      continue;
     }
 
     const unorderedItem = line.match(/^[-*+]\s+(.+)$/);
     if (unorderedItem) {
       flushParagraph();
       items.push({ type: "bullet", text: cleanMarkdownText(unorderedItem[1]) });
-      return;
+      continue;
     }
 
     const orderedItem = line.match(/^(\d+)[.)]\s+(.+)$/);
     if (orderedItem) {
       flushParagraph();
       items.push({ type: "bullet", marker: `${orderedItem[1]}.`, text: cleanMarkdownText(orderedItem[2]) });
-      return;
+      continue;
     }
 
     flushParagraph();
     paragraphLines.push(line.replace(/^>\s?/, ""));
     flushParagraph();
-  });
+  }
 
   flushParagraph();
 
   if (!inferredTitle) {
     const firstParagraphIndex = items.findIndex((item) => item.type === "paragraph");
-    if (firstParagraphIndex >= 0) {
-      inferredTitle = items[firstParagraphIndex].text;
+    const firstParagraph = items[firstParagraphIndex];
+    if (firstParagraph?.type === "paragraph") {
+      inferredTitle = firstParagraph.text;
       items.splice(firstParagraphIndex, 1);
     }
   }
@@ -1101,6 +1188,35 @@ function App() {
                             {item.marker ? <span className="bullet-marker">{item.marker}</span> : <span className="bullet-dot" />}
                             <p>{renderInline(item.text)}</p>
                           </section>
+                        );
+                      }
+
+                      if (item.type === "table") {
+                        return (
+                          <div className="report-table-wrap" key={`${item.headers.join("-")}-${index}`}>
+                            <table className="report-table">
+                              <thead>
+                                <tr>
+                                  {item.headers.map((header, cellIndex) => (
+                                    <th className={`is-${item.alignments[cellIndex]}`} key={`${header}-${cellIndex}`}>
+                                      {renderInline(header)}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {item.rows.map((row, rowIndex) => (
+                                  <tr key={`${row.join("-")}-${rowIndex}`}>
+                                    {row.map((cell, cellIndex) => (
+                                      <td className={`is-${item.alignments[cellIndex]}`} key={`${cell}-${cellIndex}`}>
+                                        {renderInline(cell)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         );
                       }
 
