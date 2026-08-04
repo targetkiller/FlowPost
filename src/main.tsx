@@ -4,6 +4,7 @@ import {
   FileText,
   Highlighter,
   ImageDown,
+  LayoutDashboard,
   Link,
   RotateCcw,
   ShieldCheck,
@@ -24,6 +25,56 @@ type CaptureResult = {
   width: number;
   height: number;
 };
+
+const sampleDailyText = `# 08/03 Mon | Oil relief rally | SPY 🔺1.40% | QQQ 🔺1.75% | SOXX 🔺0.58%
+
+> 范围：2026/08/03（周一）16:00 ET 常规时段收盘，相对上一完整交易日；不将盘后波动计入当日涨跌。
+
+## Daily Dashboard
+
+| 维度 | 收盘状态 | 市场含义 |
+|---|---|---|
+| 风险状态 | Risk On | 大盘、成长股与小盘股同步上行；半导体涨幅明显落后 QQQ。 |
+| 核心驱动 | 油价回落、利率下行 | 布伦特原油跌 4.7%，10 年期美债收益率由 4.75% 降至 4.68%。 |
+| 最强方向 | 成长 / 航空 / 工业 | QQQ 领先；低油价有利于燃油成本敏感行业。 |
+| 最弱方向 | 半导体相对落后 | SOXX 虽上涨，但未确认全面 AI 风险偏好修复。 |
+| 主要风险 | 油价与地缘风险反复 | 若局势升级，通胀和长端利率压力可能迅速回归。 |
+
+## 主要资产
+
+| 标的 | 前收 | 收盘 | 涨跌 |
+|---|---:|---:|---:|
+| SPY | 747.18 | 757.67 | 🔺1.40% |
+| QQQ | 688.03 | 700.07 | 🔺1.75% |
+| SOXX | 504.73 | 507.68 | 🔺0.58% |
+| S&P 500 | 7,489.72 | 7,600.50 | 🔺1.48% |
+| Nasdaq Composite | 25,373.86 | 25,913.90 | 🔺2.13% |
+| Dow Jones | 52,485.03 | 53,178.41 | 🔺1.32% |
+
+## 当日核心叙事
+
+**油价急跌缓解再通胀焦虑，压低长端利率，推动从大盘到小盘的风险偏好修复。** 美国暂缓新增对伊朗打击的表态带动布伦特原油跌至 83.77 美元；纳指和罗素 2000 同步走强确认反弹并非仅由少数大盘股驱动。关键非确认是 SOXX 仅涨 0.58%，显著落后 QQQ，芯片股仍受 AI 收入与资本开支持续性的分歧约束。
+
+## 盘后催化与下一交易日
+
+PLTR 盘后 Q2 营收 19.35 亿美元、同比增 93%，并上调全年营收指引；该盘后信息不计入 8 月 3 日常规时段回报。下一交易日关注美国贸易数据、JOLTS，以及油价、10 年期美债和 PLTR 对强业绩的实际开盘反应。
+
+## 热门科技股｜收盘归因与下一交易日前瞻
+
+| 标的 | 收盘涨跌 | 当日归因 / 次日观察 |
+|---|---:|---|
+| MU | 829.50 🔺0.74% | 存储链随风险偏好回升；关注能否跑赢 SOXX。 |
+| SNDK | 1,288.03 🔺6.09% | 闪存链高弹性反弹；关注 NAND 定价和相对 SOXX 强度。 |
+| ORCL | 141.85 🔺9.25% | 云与 AI 基建预期带动；关注高开后的承接。 |
+| META | 590.24 🔺6.01% | 广告/AI 平台估值修复；关注利率与广告需求。 |
+| NVDA | 206.64 🔺2.94% | AI 核心资产跑赢 SOXX；关注 AI 需求和供应链消息。 |
+| AAPL | 303.42 🔻1.78% | 未参与成长股普涨；关注产品周期与中国需求。 |
+
+## 一句话总结
+
+油价下跌与收益率回落触发广泛 Risk On 修复，但半导体相对落后仍是关键非确认；以油价、长端利率、JOLTS 和 PLTR 的业绩消化验证反弹能否扩散。
+
+仅为市场信息整理，不构成投资建议。`;
 
 const sampleText = `财报还能 beat，但市场已经不只买 GPU 增长了
 
@@ -201,7 +252,7 @@ type ContentItem =
       alignments: Array<"left" | "center" | "right">;
     };
 
-type TemplateMode = "research" | "options" | "targetPrice";
+type TemplateMode = "research" | "options" | "targetPrice" | "daily";
 
 type OptionsBrief = {
   title: string;
@@ -219,6 +270,19 @@ type TargetPriceBrief = {
   groups: Array<{ group: string; tickers: string }>;
   rows: Array<Record<string, string>>;
   notes: string[];
+};
+
+type DailyBrief = {
+  title: string;
+  marketSummary: string;
+  scope: string;
+  dashboard: string[][];
+  assets: string[][];
+  narrative: string;
+  catalysts: string;
+  stocks: string[][];
+  takeaway: string;
+  disclaimer: string;
 };
 
 type FormDraft = {
@@ -250,7 +314,7 @@ function readStoredDraft() {
       qrLink: parsed.qrLink || "https://t.zsxq.com/xvVXu",
       footerText: parsed.footerText || "社会观察从业者",
       footerSubtitle: parsed.footerSubtitle || "公众号&知识星球",
-      templateMode: parsed.templateMode === "options" || parsed.templateMode === "targetPrice" ? parsed.templateMode : "research",
+      templateMode: parsed.templateMode === "options" || parsed.templateMode === "targetPrice" || parsed.templateMode === "daily" ? parsed.templateMode : "research",
     } satisfies FormDraft;
   } catch {
     return null;
@@ -258,9 +322,18 @@ function readStoredDraft() {
 }
 
 function renderInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)/g).filter(Boolean);
+  const parts = text.split(/(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)/g).filter(Boolean);
 
   return parts.map((part, index) => {
+    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (link) {
+      return (
+        <a className="source-link" key={`${link[2]}-${index}`} href={link[2]} target="_blank" rel="noreferrer">
+          {link[1]}
+        </a>
+      );
+    }
+
     if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) {
       return <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>;
     }
@@ -695,6 +768,44 @@ function parseTargetPriceBrief(text: string): TargetPriceBrief {
   };
 }
 
+function markdownSectionText(lines: string[], heading: string) {
+  const headingIndex = lines.findIndex((line) => cleanMarkdownText(line.trim()) === heading);
+  if (headingIndex < 0) return "";
+  const result: string[] = [];
+  for (let index = headingIndex + 1; index < lines.length; index += 1) {
+    if (/^#{1,6}\s+/.test(lines[index])) break;
+    if (lines[index].trim()) result.push(lines[index].trim());
+  }
+  return result.join(" ").replace(/^>\s*/, "");
+}
+
+function parseDailyBrief(text: string): DailyBrief {
+  const lines = normalizeInputText(text).split("\n");
+  const rawTitle = getMarkdownTitle(text) || "US Market Daily";
+  const titleParts = rawTitle.split("|").map((part) => part.trim()).filter(Boolean);
+  const title = titleParts.length > 2 ? titleParts.slice(0, 2).join(" | ") : rawTitle;
+  const marketSummary = titleParts.length > 2 ? titleParts.slice(2).join(" | ") : "";
+  const scope = lines.find((line) => line.trim().startsWith(">"))?.trim().replace(/^>\s*/, "") || "美股常规时段收盘";
+  const dashboard = parseMarkdownTable(lines, "Daily Dashboard").rows;
+  const assets = parseMarkdownTable(lines, "主要资产").rows;
+  const stocks = parseMarkdownTable(lines, "热门科技股｜收盘归因与下一交易日前瞻").rows;
+  const allNonEmpty = lines.map((line) => line.trim()).filter(Boolean);
+  const disclaimer = [...allNonEmpty].reverse().find((line) => /不构成投资建议/.test(line)) || "仅为市场信息整理，不构成投资建议。";
+
+  return {
+    title,
+    marketSummary,
+    scope,
+    dashboard,
+    assets,
+    narrative: markdownSectionText(lines, "当日核心叙事"),
+    catalysts: markdownSectionText(lines, "盘后催化与下一交易日"),
+    stocks,
+    takeaway: markdownSectionText(lines, "一句话总结"),
+    disclaimer,
+  };
+}
+
 function OptionsTickerGrid({ items, tone = "squeeze" }: { items: Array<{ ticker: string; price: string }>; tone?: "squeeze" | "premium" }) {
   return (
     <div className={`options-ticker-grid options-ticker-grid--${tone}`}>
@@ -744,6 +855,7 @@ function App() {
   const parsed = useMemo(() => parseContent(content), [content]);
   const optionsBrief = useMemo(() => parseOptionsBrief(content), [content]);
   const targetPriceBrief = useMemo(() => parseTargetPriceBrief(content), [content]);
+  const dailyBrief = useMemo(() => parseDailyBrief(content), [content]);
   const displayTitle = title.trim() || parsed.inferredTitle;
   const dateLabel = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -855,11 +967,11 @@ function App() {
 
   function resetSample() {
     const nextContent =
-      templateMode === "options" ? sampleOptionsText : templateMode === "targetPrice" ? sampleTargetPriceText : sampleText;
+      templateMode === "options" ? sampleOptionsText : templateMode === "targetPrice" ? sampleTargetPriceText : templateMode === "daily" ? sampleDailyText : sampleText;
     setContent(normalizeInputText(nextContent));
     setTitle("");
     setIsTitleEdited(false);
-    setSubtitle(templateMode === "options" ? "Options Daily Brief" : templateMode === "targetPrice" ? "Target Price" : "");
+    setSubtitle(templateMode === "options" ? "Options Daily Brief" : templateMode === "targetPrice" ? "Target Price" : templateMode === "daily" ? "US Market Daily" : "");
     setWatermark("社会观察从业者");
     setQrLink("https://t.zsxq.com/xvVXu");
     setFooterText("社会观察从业者");
@@ -882,6 +994,14 @@ function App() {
       setTitle("");
       setIsTitleEdited(false);
       setSubtitle("Target Price");
+      return;
+    }
+
+    if (nextMode === "daily") {
+      setContent(normalizeInputText(sampleDailyText));
+      setTitle("");
+      setIsTitleEdited(false);
+      setSubtitle("US Market Daily");
       return;
     }
 
@@ -930,6 +1050,14 @@ function App() {
               <TargetIcon size={16} />
               目标价
             </button>
+            <button
+              className={templateMode === "daily" ? "is-active" : ""}
+              type="button"
+              onClick={() => switchTemplate("daily")}
+            >
+              <LayoutDashboard size={16} />
+              日报
+            </button>
           </div>
 
           <label className="field content-field">
@@ -942,15 +1070,16 @@ function App() {
               onChange={(event) => {
                 const nextContent = normalizeInputText(event.target.value);
                 const nextFields = inferTitleFields(nextContent);
+                const dailyTitle = templateMode === "daily" ? parseDailyBrief(nextContent).title : "";
 
                 setContent(nextContent);
-                if (nextFields.title) {
-                  setTitle(nextFields.title);
+                if (dailyTitle || nextFields.title) {
+                  setTitle(dailyTitle || nextFields.title);
                   setIsTitleEdited(false);
-                  setSubtitle(nextFields.subtitle);
+                  if (templateMode !== "daily") setSubtitle(nextFields.subtitle);
                 }
               }}
-              placeholder="粘贴报告总结、会议纪要、Markdown 或投研笔记"
+              placeholder="粘贴日报、报告总结、会议纪要、Markdown 或投研笔记"
             />
           </label>
 
@@ -1019,7 +1148,9 @@ function App() {
           <div className="phone-frame">
             <article
               className={`share-card ${
-                templateMode === "options"
+                templateMode === "daily"
+                  ? "theme-daily daily-card"
+                  : templateMode === "options"
                   ? "theme-options options-card"
                   : templateMode === "targetPrice"
                     ? "theme-target target-card"
@@ -1033,7 +1164,61 @@ function App() {
                 ))}
               </div>
 
-              {templateMode === "options" ? (
+              {templateMode === "daily" ? (
+                <>
+                  <header className="share-header daily-header">
+                    <div>
+                      <p>{subtitle || "US Market Daily"}</p>
+                      <h2>{dailyBrief.title}</h2>
+                    </div>
+                    <time className="card-date">{dateLabel}</time>
+                  </header>
+                  <p className="daily-scope">{dailyBrief.scope}</p>
+                  {dailyBrief.marketSummary && <p className="daily-market-summary">{dailyBrief.marketSummary}</p>}
+
+                  <section className="daily-dashboard">
+                    <div className="daily-section-kicker"><span>01</span><h3>Daily Dashboard</h3></div>
+                    {dailyBrief.dashboard.length ? dailyBrief.dashboard.map(([label, status, meaning]) => (
+                      <div className="daily-dashboard-row" key={label}>
+                        <span>{label}</span><strong>{status}</strong><p>{meaning}</p>
+                      </div>
+                    )) : <p className="daily-empty">粘贴含“Daily Dashboard”表格的日报内容。</p>}
+                  </section>
+
+                  <section className="daily-assets">
+                    <div className="daily-section-kicker"><span>02</span><h3>主要资产</h3></div>
+                    <div className="daily-asset-grid">
+                      {dailyBrief.assets.map(([name, , close, change]) => (
+                        <div className="daily-asset" key={name}><span>{name}</span><strong>{close}</strong><em className={change?.includes("🔻") ? "is-down" : ""}>{change}</em></div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="daily-story">
+                    <div className="daily-section-kicker"><span>03</span><h3>当日核心叙事</h3></div>
+                    <p>{renderInline(dailyBrief.narrative || "在这里呈现当天驱动市场的核心叙事。")}</p>
+                  </section>
+
+                  <section className="daily-catalysts">
+                    <div className="daily-section-kicker"><span>04</span><h3>盘后催化与下一交易日</h3></div>
+                    <p>{renderInline(dailyBrief.catalysts || "在这里记录盘后催化与下一交易日的观察重点。")}</p>
+                  </section>
+
+                  <section className="daily-stocks">
+                    <div className="daily-section-kicker"><span>05</span><h3>热门科技股</h3></div>
+                    <div className="daily-stock-grid">
+                      {dailyBrief.stocks.map(([ticker, change, note]) => (
+                        <div className="daily-stock-row" key={ticker}><strong>{ticker}</strong><span className={change?.includes("🔻") ? "is-down" : ""}>{change}</span><p>{note}</p></div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="daily-takeaway">
+                    <span>ONE LINE</span><p>{dailyBrief.takeaway || "用一句话总结今天的市场。"}</p>
+                    <small>{dailyBrief.disclaimer}</small>
+                  </section>
+                </>
+              ) : templateMode === "options" ? (
                 <>
                   <header className="share-header options-header">
                     <div>
