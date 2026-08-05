@@ -460,6 +460,16 @@ textarea::placeholder {
 .daily-story, .daily-catalysts { padding: 12px; border-radius: 9px; background: var(--accent-soft); }
 .daily-story p, .daily-catalysts p { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.7; }
 .daily-catalysts { background: #fff5e9; border-left: 3px solid var(--accent-2); }
+.daily-extra-section { position: relative; z-index: 1; margin-top: 15px; padding: 11px; border: 1px solid var(--hairline); border-radius: 9px; background: rgba(255,255,255,.72); }
+.daily-extra-content { display: grid; gap: 8px; }
+.daily-extra-content h4 { margin: 2px 0 0; color: var(--accent); font-size: 12px; line-height: 1.4; }
+.daily-extra-content p { margin: 0; color: var(--ink); font-size: 11px; line-height: 1.6; }
+.daily-extra-bullet { padding-left: 2px; }
+.daily-extra-table-wrap { overflow: hidden; border: 1px solid var(--hairline); border-radius: 7px; }
+.daily-extra-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.daily-extra-table th, .daily-extra-table td { padding: 6px 5px; border-bottom: 1px solid var(--hairline); color: var(--ink); font-size: 9px; line-height: 1.4; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.daily-extra-table th { color: var(--accent); background: var(--accent-soft); font-weight: 900; }
+.daily-extra-table tr:last-child td { border-bottom: 0; }
 .daily-stocks { padding: 11px; border: 1px solid var(--hairline); border-radius: 9px; background: rgba(255,255,255,.72); }
 .daily-stock-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .daily-stock-row { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 3px 6px; align-items: baseline; padding: 8px; border: 1px solid var(--hairline); border-radius: 7px; background: rgba(255,255,255,.68); }

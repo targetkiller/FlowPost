@@ -283,6 +283,7 @@ type DailyBrief = {
   stocks: string[][];
   takeaway: string;
   disclaimer: string;
+  extraSections: Array<{ heading: string; items: ContentItem[]; position: "beforeStocks" | "afterStocks" }>;
 };
 
 type FormDraft = {
@@ -791,6 +792,29 @@ function parseDailyBrief(text: string): DailyBrief {
   const stocks = parseMarkdownTable(lines, "热门科技股｜收盘归因与下一交易日前瞻").rows;
   const allNonEmpty = lines.map((line) => line.trim()).filter(Boolean);
   const disclaimer = [...allNonEmpty].reverse().find((line) => /不构成投资建议/.test(line)) || "仅为市场信息整理，不构成投资建议。";
+  const headings = lines
+    .map((line, index) => {
+      const match = line.match(/^(#{1,6})\s+(.+)$/);
+      return match ? { index, level: match[1].length, heading: cleanMarkdownText(match[2]) } : null;
+    })
+    .filter((item): item is { index: number; level: number; heading: string } => Boolean(item));
+  const sectionLevel = headings[1]?.level;
+  const ignoredHeadings = new Set(["Daily Dashboard", "主要资产", "当日核心叙事", "盘后催化与下一交易日", "热门科技股｜收盘归因与下一交易日前瞻", "一句话总结"]);
+  const stockIndex = headings.find((item) => item.heading === "热门科技股｜收盘归因与下一交易日前瞻")?.index ?? Number.MAX_SAFE_INTEGER;
+  const extraSections = sectionLevel
+    ? headings
+        .filter((item) => item.index !== headings[0].index && item.level === sectionLevel && !ignoredHeadings.has(item.heading))
+        .map((item) => {
+          const nextSection = headings.find((candidate) => candidate.index > item.index && candidate.level <= sectionLevel);
+          const sectionText = lines.slice(item.index + 1, nextSection?.index).join("\n").trim();
+          return {
+            heading: item.heading,
+            items: parseContent(sectionText).items,
+            position: item.index < stockIndex ? "beforeStocks" as const : "afterStocks" as const,
+          };
+        })
+        .filter((section) => section.items.length)
+    : [];
 
   return {
     title,
@@ -803,7 +827,26 @@ function parseDailyBrief(text: string): DailyBrief {
     stocks,
     takeaway: markdownSectionText(lines, "一句话总结"),
     disclaimer,
+    extraSections,
   };
+}
+
+function DailyExtraSection({ heading, items }: { heading: string; items: ContentItem[] }) {
+  return (
+    <section className="daily-extra-section">
+      <div className="daily-section-kicker"><span>+</span><h3>{heading}</h3></div>
+      <div className="daily-extra-content">
+        {items.map((item, index) => {
+          if (item.type === "section") return <h4 key={`${item.text}-${index}`}>{item.text}</h4>;
+          if (item.type === "bullet") return <p className="daily-extra-bullet" key={`${item.text}-${index}`}>{item.marker || "•"} {renderInline(item.text)}</p>;
+          if (item.type === "table") {
+            return <div className="daily-extra-table-wrap" key={`${item.headers.join("-")}-${index}`}><table className="daily-extra-table"><thead><tr>{item.headers.map((header) => <th key={header}>{renderInline(header)}</th>)}</tr></thead><tbody>{item.rows.map((row, rowIndex) => <tr key={`${row.join("-")}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${cell}-${cellIndex}`}>{renderInline(cell)}</td>)}</tr>)}</tbody></table></div>;
+          }
+          return <p key={`${item.text}-${index}`}>{renderInline(item.text)}</p>;
+        })}
+      </div>
+    </section>
+  );
 }
 
 function OptionsTickerGrid({ items, tone = "squeeze" }: { items: Array<{ ticker: string; price: string }>; tone?: "squeeze" | "premium" }) {
@@ -1199,19 +1242,29 @@ function App() {
                     <p>{renderInline(dailyBrief.narrative || "在这里呈现当天驱动市场的核心叙事。")}</p>
                   </section>
 
-                  <section className="daily-catalysts">
-                    <div className="daily-section-kicker"><span>04</span><h3>盘后催化与下一交易日</h3></div>
-                    <p>{renderInline(dailyBrief.catalysts || "在这里记录盘后催化与下一交易日的观察重点。")}</p>
-                  </section>
+                  {dailyBrief.catalysts && (
+                    <section className="daily-catalysts">
+                      <div className="daily-section-kicker"><span>04</span><h3>盘后催化与下一交易日</h3></div>
+                      <p>{renderInline(dailyBrief.catalysts)}</p>
+                    </section>
+                  )}
+
+                  {dailyBrief.extraSections.filter((section) => section.position === "beforeStocks").map((section) => (
+                    <DailyExtraSection key={section.heading} heading={section.heading} items={section.items} />
+                  ))}
 
                   <section className="daily-stocks">
                     <div className="daily-section-kicker"><span>05</span><h3>热门科技股</h3></div>
                     <div className="daily-stock-grid">
-                      {dailyBrief.stocks.map(([ticker, change, note]) => (
-                        <div className="daily-stock-row" key={ticker}><strong>{ticker}</strong><span className={change?.includes("🔻") ? "is-down" : ""}>{change}</span><p>{note}</p></div>
+                      {dailyBrief.stocks.map(([ticker, change, ...details]) => (
+                        <div className="daily-stock-row" key={ticker}><strong>{ticker}</strong><span className={change?.includes("🔻") ? "is-down" : ""}>{change}</span><p>{details.join(" ")}</p></div>
                       ))}
                     </div>
                   </section>
+
+                  {dailyBrief.extraSections.filter((section) => section.position === "afterStocks").map((section) => (
+                    <DailyExtraSection key={section.heading} heading={section.heading} items={section.items} />
+                  ))}
 
                   <section className="daily-takeaway">
                     <span>ONE LINE</span><p>{dailyBrief.takeaway || "用一句话总结今天的市场。"}</p>
