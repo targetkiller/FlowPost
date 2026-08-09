@@ -657,28 +657,13 @@ textarea::placeholder {
 }
 
 .research-insight {
-  position: relative;
   display: grid;
   gap: 10px;
   padding: 13px;
-  overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 6px 16px rgba(24, 37, 54, 0.045);
-}
-
-.research-insight::after {
-  content: attr(data-watermark);
-  position: absolute;
-  right: 10px;
-  bottom: 9px;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 850;
-  line-height: 1;
-  opacity: 0.38;
-  pointer-events: none;
 }
 
 .research-insight--lead {
@@ -687,8 +672,6 @@ textarea::placeholder {
 }
 
 .research-insight-head {
-  position: relative;
-  z-index: 1;
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 10px;
@@ -726,8 +709,6 @@ textarea::placeholder {
 }
 
 .research-insight-body {
-  position: relative;
-  z-index: 1;
   display: grid;
   gap: 8px;
 }
