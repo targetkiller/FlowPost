@@ -711,7 +711,7 @@ function ResearchItem({ item }: { item: Exclude<ContentItem, { type: "section" }
   return <p className="research-paragraph">{renderInline(item.text)}</p>;
 }
 
-function ResearchDigest({ items }: { items: ContentItem[] }) {
+function ResearchDigest({ items, watermark }: { items: ContentItem[]; watermark: string }) {
   const groups = groupResearchItems(items);
 
   return (
@@ -719,7 +719,11 @@ function ResearchDigest({ items }: { items: ContentItem[] }) {
       {groups.map((group, index) => {
         const number = group.heading.number || String(index + 1).padStart(2, "0");
         return (
-          <section className={`research-insight${index === 0 ? " research-insight--lead" : ""}`} key={`${group.heading.text}-${index}`}>
+          <section
+            className={`research-insight${index === 0 ? " research-insight--lead" : ""}`}
+            data-watermark={watermark}
+            key={`${group.heading.text}-${index}`}
+          >
             <header className="research-insight-head">
               <span>{number}</span>
               <div>
@@ -1679,7 +1683,7 @@ function App() {
                     </div>
                   </section>
 
-                  <ResearchDigest items={researchItems} />
+                  <ResearchDigest items={researchItems} watermark={watermark || "社会观察从业者"} />
                 </>
               )}
 

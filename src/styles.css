@@ -414,7 +414,7 @@ textarea::placeholder {
   --paper: #fbfdff;
   --ink: #07111f;
   --muted: rgba(24, 37, 54, 0.58);
-  --watermark: rgba(38, 78, 130, 0.05);
+  --watermark: rgba(38, 78, 130, 0.095);
 }
 
 .share-card.theme-options {
@@ -426,7 +426,7 @@ textarea::placeholder {
   --paper: #fbfdff;
   --ink: #0f172a;
   --muted: rgba(15, 23, 42, 0.54);
-  --watermark: rgba(52, 152, 219, 0.03);
+  --watermark: rgba(30, 112, 172, 0.085);
 }
 
 .share-card.theme-target {
@@ -438,7 +438,7 @@ textarea::placeholder {
   --paper: #fffdf8;
   --ink: #1e1a14;
   --muted: rgba(71, 54, 31, 0.58);
-  --watermark: rgba(179, 107, 24, 0.035);
+  --watermark: rgba(155, 86, 15, 0.085);
 }
 
 .share-card.theme-daily {
@@ -450,7 +450,7 @@ textarea::placeholder {
   --paper: #fbfcf8;
   --ink: #132a35;
   --muted: rgba(19, 42, 53, 0.62);
-  --watermark: rgba(23, 74, 99, 0.035);
+  --watermark: rgba(23, 74, 99, 0.085);
 }
 
 .daily-card {
@@ -550,7 +550,7 @@ textarea::placeholder {
   inset: 0 0 auto;
   height: 4px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  z-index: 2;
+  z-index: 5;
 }
 
 .watermark-layer {
@@ -558,17 +558,18 @@ textarea::placeholder {
   inset: -60px;
   display: grid;
   grid-template-columns: repeat(4, minmax(100px, 1fr));
-  gap: 42px 16px;
+  gap: 48px 18px;
   pointer-events: none;
-  transform: rotate(-24deg);
+  transform: rotate(-22deg);
   opacity: 1;
-  z-index: 0;
+  z-index: 3;
 }
 
 .watermark-layer span {
   color: var(--watermark);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
@@ -656,13 +657,28 @@ textarea::placeholder {
 }
 
 .research-insight {
+  position: relative;
   display: grid;
   gap: 10px;
   padding: 13px;
+  overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 6px 16px rgba(24, 37, 54, 0.045);
+}
+
+.research-insight::after {
+  content: attr(data-watermark);
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  opacity: 0.38;
+  pointer-events: none;
 }
 
 .research-insight--lead {
@@ -671,6 +687,8 @@ textarea::placeholder {
 }
 
 .research-insight-head {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 10px;
@@ -708,6 +726,8 @@ textarea::placeholder {
 }
 
 .research-insight-body {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 8px;
 }
