@@ -208,6 +208,34 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(38, 78, 130, 0.12);
 }
 
+.file-field {
+  gap: 7px;
+  padding: 10px;
+  border: 1px dashed rgba(38, 78, 130, 0.26);
+  border-radius: 8px;
+  background: rgba(238, 244, 251, 0.48);
+}
+
+.file-field input[type="file"] {
+  min-height: 32px;
+  padding: 5px 0 0;
+  border: 0;
+  background: transparent;
+  color: #3b5b79;
+  font-size: 12px;
+}
+
+.file-field em {
+  color: rgba(38, 78, 130, 0.62);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.evidence-upload input[type="text"] {
+  min-height: 34px;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: rgba(24, 37, 54, 0.42);
@@ -549,6 +577,201 @@ textarea::placeholder {
 .share-footer {
   position: relative;
   z-index: 1;
+}
+
+.report-source-card,
+.research-digest {
+  position: relative;
+  z-index: 1;
+}
+
+.report-source-card {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0 16px;
+  padding: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.report-source-card > img,
+.report-source-placeholder {
+  width: 88px;
+  height: 62px;
+  border-radius: 5px;
+  object-fit: cover;
+  background: #edf3f9;
+}
+
+.report-source-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  color: var(--accent);
+}
+
+.report-source-placeholder span {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.report-source-card > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.report-source-card span,
+.research-insight-head small,
+.research-evidence figcaption span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.report-source-card strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 850;
+}
+
+.report-source-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.research-digest {
+  display: grid;
+  gap: 12px;
+  padding: 0 0 10px;
+}
+
+.research-insight {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 16px rgba(24, 37, 54, 0.045);
+}
+
+.research-insight--lead {
+  border-color: rgba(38, 78, 130, 0.28);
+  background: #f1f6fb;
+}
+
+.research-insight-head {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.research-insight-head > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #e76f2e;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.research-insight--lead .research-insight-head > span {
+  background: var(--accent);
+}
+
+.research-insight-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.research-insight-head h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.32;
+  font-weight: 850;
+  overflow-wrap: break-word;
+}
+
+.research-insight-body {
+  display: grid;
+  gap: 8px;
+}
+
+.research-paragraph,
+.research-point p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 480;
+}
+
+.research-insight--lead .research-paragraph {
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.research-point {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.research-point .bullet-dot {
+  margin-top: 10px;
+  background: #e76f2e;
+}
+
+.research-point .bullet-marker {
+  color: #e76f2e;
+}
+
+.research-evidence {
+  display: grid;
+  gap: 7px;
+  margin: 4px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+}
+
+.research-evidence img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  border: 1px solid rgba(38, 78, 130, 0.12);
+  border-radius: 6px;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.research-evidence figcaption {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.research-evidence figcaption span {
+  color: #c55a20;
 }
 
 .share-header {

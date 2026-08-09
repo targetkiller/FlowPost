@@ -4,6 +4,7 @@ import {
   FileText,
   Highlighter,
   ImageDown,
+  ImagePlus,
   LayoutDashboard,
   Link,
   RotateCcw,
@@ -245,6 +246,7 @@ type ContentItem =
   | { type: "section"; text: string; number?: string }
   | { type: "paragraph"; text: string }
   | { type: "bullet"; text: string; marker?: string }
+  | { type: "image"; alt: string; src: string; takeaway?: string }
   | {
       type: "table";
       headers: string[];
@@ -294,8 +296,41 @@ type FormDraft = {
   qrLink: string;
   footerText: string;
   footerSubtitle: string;
+  reportSource: string;
+  reportCover: string;
   templateMode: TemplateMode;
 };
+
+type ParsedContent = {
+  inferredTitle: string;
+  items: ContentItem[];
+  reportCover?: string;
+  reportSource?: string;
+};
+
+function toFlowPostAssetUrl(source: string) {
+  if (/^(data:image\/|https?:\/\/)/i.test(source)) return source;
+  const normalized = source.replace(/^file:\/\//i, "");
+  return `/@fs/${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
+}
+
+function toDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function resolveFlowPostAsset(source: string) {
+  if (/^data:image\//i.test(source)) return source;
+  if (/^https?:\/\//i.test(source)) return source;
+
+  const response = await fetch(toFlowPostAssetUrl(source));
+  if (!response.ok) throw new Error(`Unable to load chart asset: ${source}`);
+  return toDataUrl(await response.blob());
+}
 
 function normalizeInputText(text: string) {
   return text.replace(/\r\n/g, "\n").replace(/\n{2,}/g, "\n");
@@ -315,6 +350,8 @@ function readStoredDraft() {
       qrLink: parsed.qrLink || "https://t.zsxq.com/xvVXu",
       footerText: parsed.footerText || "社会观察从业者",
       footerSubtitle: parsed.footerSubtitle || "公众号&知识星球",
+      reportSource: parsed.reportSource || "华尔街研报 · 图表证据 · 深度解读",
+      reportCover: parsed.reportCover || "",
       templateMode: parsed.templateMode === "options" || parsed.templateMode === "targetPrice" || parsed.templateMode === "daily" ? parsed.templateMode : "research",
     } satisfies FormDraft;
   } catch {
@@ -475,11 +512,13 @@ function inferTitleFields(text: string) {
   return { title: markdownTitle, subtitle: "" };
 }
 
-function parseMarkdownContent(text: string) {
+function parseMarkdownContent(text: string): ParsedContent {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const items: ContentItem[] = [];
   const paragraphLines: string[] = [];
   let inferredTitle = "";
+  let reportCover = "";
+  let reportSource = "";
 
   function flushParagraph() {
     const paragraph = paragraphLines.join(" ").trim();
@@ -495,6 +534,37 @@ function parseMarkdownContent(text: string) {
 
     if (!line) {
       flushParagraph();
+      continue;
+    }
+
+    const coverDirective = line.match(/^<!--\s*flowpost-cover\s*:\s*(.+?)\s*-->$/i);
+    if (coverDirective) {
+      reportCover = coverDirective[1];
+      continue;
+    }
+
+    const sourceDirective = line.match(/^<!--\s*flowpost-source\s*:\s*(.+?)\s*-->$/i);
+    if (sourceDirective) {
+      reportSource = sourceDirective[1];
+      continue;
+    }
+
+    const chartDirective = line.match(/^<!--\s*flowpost-chart\s+(.+?)\s*-->$/i);
+    if (chartDirective) {
+      flushParagraph();
+      try {
+        const chart = JSON.parse(chartDirective[1]) as { title?: string; takeaway?: string; image?: string };
+        if (chart.image) items.push({ type: "image", alt: chart.title || "报告图表", takeaway: chart.takeaway || "", src: chart.image });
+      } catch {
+        // A malformed directive should stay invisible rather than appearing in the post.
+      }
+      continue;
+    }
+
+    const image = line.match(/^!\[([^\]]*)\]\((data:image\/[a-zA-Z0-9.+-]+;base64,[^)]+|https?:\/\/[^)]+)\)$/);
+    if (image) {
+      flushParagraph();
+      items.push({ type: "image", alt: image[1] || "报告图表", src: image[2] });
       continue;
     }
 
@@ -536,6 +606,13 @@ function parseMarkdownContent(text: string) {
       continue;
     }
 
+    const numberedSection = line.match(/^(\d+)\s*[/、.]\s*(.+)$/);
+    if (numberedSection) {
+      flushParagraph();
+      items.push({ type: "section", number: numberedSection[1], text: cleanMarkdownText(numberedSection[2]) });
+      continue;
+    }
+
     const unorderedItem = line.match(/^[-*+]\s+(.+)$/);
     if (unorderedItem) {
       flushParagraph();
@@ -569,10 +646,98 @@ function parseMarkdownContent(text: string) {
   return {
     inferredTitle: inferredTitle || "报告摘要",
     items: items.length ? items : [{ type: "paragraph", text: inferredTitle || "把报告总结粘贴到左侧，右侧会生成适合手机阅读的长图。" }] as ContentItem[],
+    reportCover: reportCover || undefined,
+    reportSource: reportSource || undefined,
   };
 }
 
-function parseContent(text: string) {
+type ResearchGroup = {
+  heading: Extract<ContentItem, { type: "section" }>;
+  items: Array<Exclude<ContentItem, { type: "section" }>>;
+};
+
+function groupResearchItems(items: ContentItem[]) {
+  const groups: ResearchGroup[] = [];
+  let current: ResearchGroup | null = null;
+
+  for (const item of items) {
+    if (item.type === "section") {
+      current = { heading: item, items: [] };
+      groups.push(current);
+      continue;
+    }
+
+    if (!current) {
+      current = { heading: { type: "section", text: "核心结论" }, items: [] };
+      groups.push(current);
+    }
+
+    current.items.push(item as Exclude<ContentItem, { type: "section" }>);
+  }
+
+  return groups;
+}
+
+function ResearchItem({ item }: { item: Exclude<ContentItem, { type: "section" }> }) {
+  if (item.type === "bullet") {
+    return (
+      <div className="research-point">
+        {item.marker ? <span className="bullet-marker">{item.marker}</span> : <span className="bullet-dot" />}
+        <p>{renderInline(item.text)}</p>
+      </div>
+    );
+  }
+
+  if (item.type === "image") {
+    return (
+      <figure className="research-evidence">
+        <img src={item.src} alt={item.alt} />
+        <figcaption><span>{item.alt}</span>{item.takeaway && <strong>{item.takeaway}</strong>}</figcaption>
+      </figure>
+    );
+  }
+
+  if (item.type === "table") {
+    return (
+      <div className="report-table-wrap">
+        <table className="report-table">
+          <thead><tr>{item.headers.map((header, cellIndex) => <th className={`is-${item.alignments[cellIndex]}`} key={`${header}-${cellIndex}`}>{renderInline(header)}</th>)}</tr></thead>
+          <tbody>{item.rows.map((row, rowIndex) => <tr key={`${row.join("-")}-${rowIndex}`}>{row.map((cell, cellIndex) => <td className={`is-${item.alignments[cellIndex]}`} key={`${cell}-${cellIndex}`}>{renderInline(cell)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return <p className="research-paragraph">{renderInline(item.text)}</p>;
+}
+
+function ResearchDigest({ items }: { items: ContentItem[] }) {
+  const groups = groupResearchItems(items);
+
+  return (
+    <div className="research-digest">
+      {groups.map((group, index) => {
+        const number = group.heading.number || String(index + 1).padStart(2, "0");
+        return (
+          <section className={`research-insight${index === 0 ? " research-insight--lead" : ""}`} key={`${group.heading.text}-${index}`}>
+            <header className="research-insight-head">
+              <span>{number}</span>
+              <div>
+                <small>{index === 0 ? "先看结论" : "拆解问题"}</small>
+                <h3>{renderInline(group.heading.text)}</h3>
+              </div>
+            </header>
+            <div className="research-insight-body">
+              {group.items.map((item, itemIndex) => <ResearchItem item={item} key={`${item.type}-${itemIndex}`} />)}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function parseContent(text: string): ParsedContent {
   const normalizedText = normalizeInputText(text).trim();
 
   if (isMarkdownContent(normalizedText)) {
@@ -842,6 +1007,7 @@ function DailyExtraSection({ heading, items }: { heading: string; items: Content
           if (item.type === "table") {
             return <div className="daily-extra-table-wrap" key={`${item.headers.join("-")}-${index}`}><table className="daily-extra-table"><thead><tr>{item.headers.map((header) => <th key={header}>{renderInline(header)}</th>)}</tr></thead><tbody>{item.rows.map((row, rowIndex) => <tr key={`${row.join("-")}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${cell}-${cellIndex}`}>{renderInline(cell)}</td>)}</tr>)}</tbody></table></div>;
           }
+          if (item.type === "image") return <img className="daily-extra-image" src={item.src} alt={item.alt} key={`${item.alt}-${index}`} />;
           return <p key={`${item.text}-${index}`}>{renderInline(item.text)}</p>;
         })}
       </div>
@@ -890,16 +1056,43 @@ function App() {
   const [qrLink, setQrLink] = useState(() => storedDraft?.qrLink || "https://t.zsxq.com/xvVXu");
   const [footerText, setFooterText] = useState(() => storedDraft?.footerText || "社会观察从业者");
   const [footerSubtitle, setFooterSubtitle] = useState(() => storedDraft?.footerSubtitle || "公众号&知识星球");
+  const [reportSource, setReportSource] = useState(() => storedDraft?.reportSource || "");
+  const [reportCover, setReportCover] = useState(() => storedDraft?.reportCover || "");
+  const [chartCaption, setChartCaption] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [generatedImage, setGeneratedImage] = useState("");
   const [generatedImageWidth, setGeneratedImageWidth] = useState(0);
   const cardRef = useRef<HTMLElement>(null);
 
   const parsed = useMemo(() => parseContent(content), [content]);
+  const assetSources = useMemo(() => {
+    const sources = parsed.items.filter((item): item is Extract<ContentItem, { type: "image" }> => item.type === "image").map((item) => item.src);
+    if (parsed.reportCover) sources.push(parsed.reportCover);
+    return [...new Set(sources.filter((source) => !/^data:image\//i.test(source)))];
+  }, [parsed]);
+  const [resolvedAssets, setResolvedAssets] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all(assetSources.map(async (source) => {
+      try {
+        return [source, await resolveFlowPostAsset(source)] as const;
+      } catch {
+        return [source, toFlowPostAssetUrl(source)] as const;
+      }
+    })).then((assets) => {
+      if (!cancelled) setResolvedAssets(Object.fromEntries(assets));
+    });
+
+    return () => { cancelled = true; };
+  }, [assetSources]);
   const optionsBrief = useMemo(() => parseOptionsBrief(content), [content]);
   const targetPriceBrief = useMemo(() => parseTargetPriceBrief(content), [content]);
   const dailyBrief = useMemo(() => parseDailyBrief(content), [content]);
   const displayTitle = title.trim() || parsed.inferredTitle;
+  const researchItems = useMemo<ContentItem[]>(() => parsed.items.map((item) => item.type === "image" ? { ...item, src: resolvedAssets[item.src] || toFlowPostAssetUrl(item.src) } : item), [parsed.items, resolvedAssets]);
+  const displayReportCover = reportCover || (parsed.reportCover ? resolvedAssets[parsed.reportCover] || toFlowPostAssetUrl(parsed.reportCover) : "");
+  const displayReportSource = reportSource.trim() || parsed.reportSource || "华尔街研报 · 图表证据 · 深度解读";
   const dateLabel = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "2-digit",
@@ -917,6 +1110,8 @@ function App() {
         qrLink,
         footerText,
         footerSubtitle,
+        reportSource,
+        reportCover,
         templateMode,
       } satisfies FormDraft),
     );
@@ -1019,6 +1214,29 @@ function App() {
     setQrLink("https://t.zsxq.com/xvVXu");
     setFooterText("社会观察从业者");
     setFooterSubtitle("公众号&知识星球");
+    setReportSource("");
+    setReportCover("");
+    setChartCaption("");
+  }
+
+  function readImageFile(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addEvidenceImage(file?: File) {
+    if (!file) return;
+
+    const src = await readImageFile(file);
+    if (!src) return;
+    const caption = chartCaption.trim() || file.name.replace(/\.[^.]+$/, "") || "报告图表";
+    const nextContent = `${content.trim()}\n\n![${caption}](${src})`;
+    setContent(nextContent);
+    setChartCaption("");
   }
 
   function switchTemplate(nextMode: TemplateMode) {
@@ -1148,6 +1366,52 @@ function App() {
             </span>
             <input value={subtitle} onChange={(event) => setSubtitle(event.target.value)} placeholder="显示在标题上方" />
           </label>
+
+          {templateMode === "research" && (
+            <>
+              <label className="field">
+                <span>
+                  <FileText size={16} />
+                  报告来源
+                </span>
+                <input value={reportSource} onChange={(event) => setReportSource(event.target.value)} placeholder="机构 · 页数 · 文件大小" />
+              </label>
+
+              <label className="field file-field">
+                <span>
+                  <ImagePlus size={16} />
+                  报告封面
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file) setReportCover(await readImageFile(file));
+                    event.target.value = "";
+                  }}
+                />
+                <em>{reportCover ? "已嵌入 Base64 封面" : "上传 PDF 首页或报告截图"}</em>
+              </label>
+
+              <label className="field file-field evidence-upload">
+                <span>
+                  <ImagePlus size={16} />
+                  图表证据
+                </span>
+                <input value={chartCaption} onChange={(event) => setChartCaption(event.target.value)} placeholder="图表标题，例如：NAND 现货价格为何急升" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    await addEvidenceImage(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+                <em>上传后自动写入正文为 Base64 图表，并随长图导出。</em>
+              </label>
+            </>
+          )}
 
           <label className="field">
             <span>
@@ -1406,65 +1670,16 @@ function App() {
                     <time className="card-date">{dateLabel}</time>
                   </header>
 
-                  <div className="summary-list">
-                    {parsed.items.map((item, index) => {
-                      if (item.type === "section") {
-                        return (
-                          <section
-                            className={`section-heading${item.number ? "" : " section-heading--plain"}`}
-                            key={`${item.text}-${index}`}
-                          >
-                            {item.number && <span>{item.number}</span>}
-                            <h3>{renderInline(item.text)}</h3>
-                          </section>
-                        );
-                      }
+                  <section className="report-source-card">
+                    {displayReportCover ? <img src={displayReportCover} alt="报告封面" /> : <div className="report-source-placeholder"><FileText size={28} /><span>REPORT</span></div>}
+                    <div>
+                      <span>研究来源</span>
+                      <strong>{subtitle || "华尔街研报"}</strong>
+                      <p>{displayReportSource}</p>
+                    </div>
+                  </section>
 
-                      if (item.type === "bullet") {
-                        return (
-                          <section className="text-block bullet-block" key={`${item.text}-${index}`}>
-                            {item.marker ? <span className="bullet-marker">{item.marker}</span> : <span className="bullet-dot" />}
-                            <p>{renderInline(item.text)}</p>
-                          </section>
-                        );
-                      }
-
-                      if (item.type === "table") {
-                        return (
-                          <div className="report-table-wrap" key={`${item.headers.join("-")}-${index}`}>
-                            <table className="report-table">
-                              <thead>
-                                <tr>
-                                  {item.headers.map((header, cellIndex) => (
-                                    <th className={`is-${item.alignments[cellIndex]}`} key={`${header}-${cellIndex}`}>
-                                      {renderInline(header)}
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {item.rows.map((row, rowIndex) => (
-                                  <tr key={`${row.join("-")}-${rowIndex}`}>
-                                    {row.map((cell, cellIndex) => (
-                                      <td className={`is-${item.alignments[cellIndex]}`} key={`${cell}-${cellIndex}`}>
-                                        {renderInline(cell)}
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <section className="text-block" key={`${item.text}-${index}`}>
-                          <p>{renderInline(item.text)}</p>
-                        </section>
-                      );
-                    })}
-                  </div>
+                  <ResearchDigest items={researchItems} />
                 </>
               )}
 
