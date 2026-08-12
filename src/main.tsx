@@ -380,7 +380,7 @@ function renderInline(text: string) {
       return <code key={`${part}-${index}`}>{part.slice(1, -1)}</code>;
     }
 
-    return part;
+    return part.replace(/\\([\\`*_[\]{}()#+.!-])/g, "$1");
   });
 }
 
@@ -606,6 +606,13 @@ function parseMarkdownContent(text: string): ParsedContent {
       continue;
     }
 
+    const orderedItem = line.match(/^(\d+)[.)]\s+(.+)$/);
+    if (orderedItem) {
+      flushParagraph();
+      items.push({ type: "bullet", marker: `${orderedItem[1]}.`, text: orderedItem[2].trim() });
+      continue;
+    }
+
     const numberedSection = line.match(/^(\d+)\s*[/、.]\s*(.+)$/);
     if (numberedSection) {
       flushParagraph();
@@ -617,13 +624,6 @@ function parseMarkdownContent(text: string): ParsedContent {
     if (unorderedItem) {
       flushParagraph();
       items.push({ type: "bullet", text: cleanMarkdownText(unorderedItem[1]) });
-      continue;
-    }
-
-    const orderedItem = line.match(/^(\d+)[.)]\s+(.+)$/);
-    if (orderedItem) {
-      flushParagraph();
-      items.push({ type: "bullet", marker: `${orderedItem[1]}.`, text: cleanMarkdownText(orderedItem[2]) });
       continue;
     }
 
@@ -1002,8 +1002,15 @@ function DailyExtraSection({ heading, items }: { heading: string; items: Content
       <div className="daily-section-kicker"><span>+</span><h3>{heading}</h3></div>
       <div className="daily-extra-content">
         {items.map((item, index) => {
-          if (item.type === "section") return <h4 key={`${item.text}-${index}`}>{item.text}</h4>;
-          if (item.type === "bullet") return <p className="daily-extra-bullet" key={`${item.text}-${index}`}>{item.marker || "•"} {renderInline(item.text)}</p>;
+          if (item.type === "section") return <h4 key={`${item.text}-${index}`}>{renderInline(item.text)}</h4>;
+          if (item.type === "bullet") {
+            return (
+              <p className="daily-extra-bullet" key={`${item.text}-${index}`}>
+                <span className="daily-extra-bullet-marker">{item.marker || "•"}</span>
+                <span>{renderInline(item.text)}</span>
+              </p>
+            );
+          }
           if (item.type === "table") {
             return <div className="daily-extra-table-wrap" key={`${item.headers.join("-")}-${index}`}><table className="daily-extra-table"><thead><tr>{item.headers.map((header) => <th key={header}>{renderInline(header)}</th>)}</tr></thead><tbody>{item.rows.map((row, rowIndex) => <tr key={`${row.join("-")}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${cell}-${cellIndex}`}>{renderInline(cell)}</td>)}</tr>)}</tbody></table></div>;
           }
@@ -1520,9 +1527,17 @@ function App() {
                   <section className="daily-stocks">
                     <div className="daily-section-kicker"><span>05</span><h3>热门科技股</h3></div>
                     <div className="daily-stock-grid">
-                      {dailyBrief.stocks.map(([ticker, change, ...details]) => (
-                        <div className="daily-stock-row" key={ticker}><strong>{ticker}</strong><span className={change?.includes("🔻") ? "is-down" : ""}>{change}</span><p>{details.join(" ")}</p></div>
-                      ))}
+                      {dailyBrief.stocks.map(([ticker, change, ...details]) => {
+                        const isValidChange = /(?:🔺|🔻)/.test(change || "");
+                        const summary = isValidChange ? details.join(" ") : [change, ...details].filter(Boolean).join(" ");
+                        return (
+                          <div className="daily-stock-row" key={ticker}>
+                            <strong>{ticker}</strong>
+                            {isValidChange && <span className={change.includes("🔻") ? "is-down" : ""}>{change}</span>}
+                            <p>{summary}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   </section>
 
