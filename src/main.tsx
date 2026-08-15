@@ -1,6 +1,10 @@
 import { getFontEmbedCSS, toPng } from "html-to-image";
 import {
   Activity,
+  ArrowLeft,
+  ArrowRight,
+  Database,
+  ExternalLink,
   FileText,
   Highlighter,
   ImageDown,
@@ -18,6 +22,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import { thirteenFCards, type ThirteenFCardData } from "./thirteenFData";
 
 const storageKey = "flowpost:last-input";
 
@@ -254,7 +259,7 @@ type ContentItem =
       alignments: Array<"left" | "center" | "right">;
     };
 
-type TemplateMode = "research" | "options" | "targetPrice" | "daily";
+type TemplateMode = "research" | "options" | "targetPrice" | "daily" | "thirteenF";
 
 type OptionsBrief = {
   title: string;
@@ -352,7 +357,10 @@ function readStoredDraft() {
       footerSubtitle: parsed.footerSubtitle || "公众号&知识星球",
       reportSource: parsed.reportSource || "华尔街研报 · 图表证据 · 深度解读",
       reportCover: parsed.reportCover || "",
-      templateMode: parsed.templateMode === "options" || parsed.templateMode === "targetPrice" || parsed.templateMode === "daily" ? parsed.templateMode : "research",
+      templateMode:
+        parsed.templateMode === "options" || parsed.templateMode === "targetPrice" || parsed.templateMode === "daily" || parsed.templateMode === "thirteenF"
+          ? parsed.templateMode
+          : "research",
     } satisfies FormDraft;
   } catch {
     return null;
@@ -1052,6 +1060,165 @@ function getTargetStatusClass(status: string) {
   return "target-status";
 }
 
+function ThirteenFPositionBlock({
+  label,
+  items,
+  tone,
+}: {
+  label: string;
+  items: string[];
+  tone: "increase" | "reduction" | "opened" | "exited";
+}) {
+  return (
+    <section className={`thirteenf-position thirteenf-position--${tone}`}>
+      <header>
+        <span>{label}</span>
+        <strong>{String(items.length).padStart(2, "0")}</strong>
+      </header>
+      <div className="thirteenf-ticker-list">
+        {items.length ? items.map((item) => <code key={item}>{item}</code>) : <em>本季无变化</em>}
+      </div>
+    </section>
+  );
+}
+
+function ThirteenFPersonalPortfolio({ data }: { data: ThirteenFCardData }) {
+  return (
+    <section className="thirteenf-personal-portfolio">
+      <header>
+        <div>
+          <span>主要多头</span>
+          <strong>大致仓位</strong>
+        </div>
+        <em>非官方估算</em>
+      </header>
+      <div className="thirteenf-tier-list">
+        {data.holdingsTiers?.map((tier, index) => (
+          <section className="thirteenf-tier" key={tier.label}>
+            <div className="thirteenf-tier-heading">
+              <small>{String(index + 1).padStart(2, "0")}</small>
+              <strong>{tier.label}</strong>
+              <span>{tier.weight}</span>
+            </div>
+            <div className="thirteenf-tier-items">
+              {tier.items.map((item) => (
+                <span key={item.ticker}>
+                  <strong>{item.name}</strong>
+                  <code>{item.ticker}</code>
+                </span>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ThirteenFCardContent({ data }: { data: ThirteenFCardData }) {
+  return (
+    <>
+      <header className="thirteenf-header">
+        <div className="thirteenf-monogram">{data.code}</div>
+        <div className="thirteenf-identity">
+          <p>{data.eyebrow || `SEC FORM 13F · ${data.period}`}</p>
+          <h2>{data.name}</h2>
+          <span>{data.chineseName}</span>
+        </div>
+        <span className={`thirteenf-status ${data.status === "无本季报告" ? "is-missing" : ""} ${data.status === "个人估算" ? "is-personal" : ""}`}>{data.status}</span>
+      </header>
+
+      <section className="thirteenf-hero">
+        <div className="thirteenf-value">
+          <span>{data.valueLabel || "申报名义市值"}</span>
+          <strong className={data.value.length >= 8 ? "is-long-value" : undefined}>{data.value}</strong>
+          <small>{data.filedLabel || "FILED"} {data.filed}</small>
+        </div>
+        <div className="thirteenf-thesis">
+          <span>本季主线</span>
+          <p>{data.summary}</p>
+        </div>
+      </section>
+
+      {data.holdingsTiers?.length ? (
+        <ThirteenFPersonalPortfolio data={data} />
+      ) : data.status === "已披露" ? (
+        <div className="thirteenf-change-grid">
+          <ThirteenFPositionBlock label="加仓" items={data.increases} tone="increase" />
+          <ThirteenFPositionBlock label="减仓" items={data.reductions} tone="reduction" />
+          <ThirteenFPositionBlock label="新建仓" items={data.opened} tone="opened" />
+          <ThirteenFPositionBlock label="清仓" items={data.exited} tone="exited" />
+        </div>
+      ) : (
+        <section className="thirteenf-missing-panel">
+          <Database size={24} />
+          <div>
+            <strong>本季没有公开申报数据</strong>
+            <p>保留状态卡，避免把历史持仓误当成 2026Q2 最新仓位。</p>
+          </div>
+        </section>
+      )}
+
+      {data.topHoldings.length > 0 && (
+        <section className="thirteenf-top-holdings">
+          <header>
+            <span>TOP HOLDINGS</span>
+            <strong>前五大持仓</strong>
+          </header>
+          <div>
+            {data.topHoldings.map((ticker, index) => (
+              <span key={ticker}>
+                <small>{String(index + 1).padStart(2, "0")}</small>
+                <strong>{ticker}</strong>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {data.extraLabel && data.extraItems?.length ? (
+        <section className="thirteenf-extra">
+          <span>{data.extraLabel}</span>
+          <p>{data.extraItems.join(" · ")}</p>
+        </section>
+      ) : null}
+
+      <section className="thirteenf-note">
+        <div className="thirteenf-note-index">READ</div>
+        <p>{data.note}</p>
+      </section>
+
+      {data.sourceUrl ? (
+        <section className="thirteenf-source-list">
+          <a className="thirteenf-sec-source" href={data.sourceUrl} target="_blank" rel="noreferrer">
+            <span className="thirteenf-source-heading">
+              <Database size={13} />
+              <strong>{data.sourceLabel || "SEC EDGAR 本期原始申报"}</strong>
+              <ExternalLink size={12} />
+            </span>
+            <code>{data.sourceUrl}</code>
+          </a>
+          {data.comparisonUrl ? (
+            <a className="thirteenf-sec-source" href={data.comparisonUrl} target="_blank" rel="noreferrer">
+              <span className="thirteenf-source-heading">
+                <Database size={13} />
+                <strong>SEC EDGAR 上期对比申报</strong>
+                <ExternalLink size={12} />
+              </span>
+              <code>{data.comparisonUrl}</code>
+            </a>
+          ) : null}
+        </section>
+      ) : (
+        <div className="thirteenf-sec-source is-reference">
+          <Database size={13} />
+          <span>{data.sourceLabel || "资料整理"}</span>
+        </div>
+      )}
+    </>
+  );
+}
+
 function App() {
   const storedDraft = useMemo(() => readStoredDraft(), []);
   const [templateMode, setTemplateMode] = useState<TemplateMode>(() => storedDraft?.templateMode || "research");
@@ -1067,9 +1234,12 @@ function App() {
   const [reportCover, setReportCover] = useState(() => storedDraft?.reportCover || "");
   const [chartCaption, setChartCaption] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedThirteenFIndex, setSelectedThirteenFIndex] = useState(0);
+  const [batchExportProgress, setBatchExportProgress] = useState("");
   const [generatedImage, setGeneratedImage] = useState("");
   const [generatedImageWidth, setGeneratedImageWidth] = useState(0);
   const cardRef = useRef<HTMLElement>(null);
+  const thirteenFDeckRef = useRef<HTMLDivElement>(null);
 
   const parsed = useMemo(() => parseContent(content), [content]);
   const assetSources = useMemo(() => {
@@ -1096,6 +1266,7 @@ function App() {
   const optionsBrief = useMemo(() => parseOptionsBrief(content), [content]);
   const targetPriceBrief = useMemo(() => parseTargetPriceBrief(content), [content]);
   const dailyBrief = useMemo(() => parseDailyBrief(content), [content]);
+  const selectedThirteenF = thirteenFCards[selectedThirteenFIndex] || thirteenFCards[0];
   const displayTitle = title.trim() || parsed.inferredTitle;
   const researchItems = useMemo<ContentItem[]>(() => parsed.items.map((item) => item.type === "image" ? { ...item, src: resolvedAssets[item.src] || toFlowPostAssetUrl(item.src) } : item), [parsed.items, resolvedAssets]);
   const displayReportCover = reportCover || (parsed.reportCover ? resolvedAssets[parsed.reportCover] || toFlowPostAssetUrl(parsed.reportCover) : "");
@@ -1124,12 +1295,7 @@ function App() {
     );
   }
 
-  async function captureShareCard(): Promise<CaptureResult> {
-    if (!cardRef.current) {
-      throw new Error("Share card is not ready.");
-    }
-
-    const card = cardRef.current;
+  async function captureCardElement(card: HTMLElement): Promise<CaptureResult> {
     const previousCardStyle = {
       width: card.style.width,
       height: card.style.height,
@@ -1176,6 +1342,11 @@ function App() {
     }
   }
 
+  async function captureShareCard(): Promise<CaptureResult> {
+    if (!cardRef.current) throw new Error("Share card is not ready.");
+    return captureCardElement(cardRef.current);
+  }
+
   async function generateImage() {
     setIsExporting(true);
 
@@ -1185,6 +1356,29 @@ function App() {
       setGeneratedImageWidth(result.width);
       setGeneratedImage(result.dataUrl);
       saveDraft();
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function exportAllThirteenFCards() {
+    const cards = Array.from(thirteenFDeckRef.current?.querySelectorAll<HTMLElement>("[data-thirteen-f-export-card]") || []);
+    if (!cards.length) return;
+
+    setIsExporting(true);
+    try {
+      for (let index = 0; index < cards.length; index += 1) {
+        setBatchExportProgress(`正在导出 ${index + 1} / ${cards.length}`);
+        const result = await captureCardElement(cards[index]);
+        const link = document.createElement("a");
+        link.href = result.dataUrl;
+        link.download = `13F-2026Q2-${thirteenFCards[index].id}.png`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        await new Promise((resolve) => window.setTimeout(resolve, 120));
+      }
+      setBatchExportProgress(`已导出 ${cards.length} 张卡片`);
     } finally {
       setIsExporting(false);
     }
@@ -1216,7 +1410,19 @@ function App() {
     setContent(normalizeInputText(nextContent));
     setTitle("");
     setIsTitleEdited(false);
-    setSubtitle(templateMode === "options" ? "Options Daily Brief" : templateMode === "targetPrice" ? "Target Price" : templateMode === "daily" ? "US Market Daily" : "");
+    setSubtitle(
+      templateMode === "options"
+        ? "Options Daily Brief"
+        : templateMode === "targetPrice"
+          ? "Target Price"
+          : templateMode === "daily"
+            ? "US Market Daily"
+            : templateMode === "thirteenF"
+              ? "13F Disclosure"
+              : "",
+    );
+    setSelectedThirteenFIndex(0);
+    setBatchExportProgress("");
     setWatermark("社会观察从业者");
     setQrLink("https://t.zsxq.com/xvVXu");
     setFooterText("社会观察从业者");
@@ -1248,6 +1454,14 @@ function App() {
 
   function switchTemplate(nextMode: TemplateMode) {
     setTemplateMode(nextMode);
+
+    if (nextMode === "thirteenF") {
+      setTitle("");
+      setIsTitleEdited(false);
+      setSubtitle("13F Disclosure");
+      setBatchExportProgress("");
+      return;
+    }
 
     if (nextMode === "options") {
       setContent(normalizeInputText(sampleOptionsText));
@@ -1326,8 +1540,81 @@ function App() {
               <LayoutDashboard size={16} />
               日报
             </button>
+            <button
+              className={templateMode === "thirteenF" ? "is-active" : ""}
+              type="button"
+              onClick={() => switchTemplate("thirteenF")}
+            >
+              <Database size={16} />
+              13F 披露
+            </button>
           </div>
 
+          {templateMode === "thirteenF" ? (
+            <section className="thirteenf-control">
+              <header className="thirteenf-control-head">
+                <div>
+                  <span><Database size={15} /> 2026 Q2 DATASET</span>
+                  <strong>13F 披露卡片</strong>
+                </div>
+                <em>{thirteenFCards.length} 张</em>
+              </header>
+
+              <div className="thirteenf-entity-grid" aria-label="选择 13F 卡片">
+                {thirteenFCards.map((card, index) => (
+                  <button
+                    className={selectedThirteenFIndex === index ? "is-active" : ""}
+                    type="button"
+                    key={card.id}
+                    onClick={() => setSelectedThirteenFIndex(index)}
+                    aria-pressed={selectedThirteenFIndex === index}
+                  >
+                    <span>{card.code}</span>
+                    <small>{card.name}</small>
+                  </button>
+                ))}
+              </div>
+
+              <div className="thirteenf-selector-nav">
+                <button
+                  type="button"
+                  onClick={() => setSelectedThirteenFIndex((selectedThirteenFIndex - 1 + thirteenFCards.length) % thirteenFCards.length)}
+                  aria-label="上一张 13F 卡片"
+                >
+                  <ArrowLeft size={15} />
+                </button>
+                <span>{String(selectedThirteenFIndex + 1).padStart(2, "0")} / {String(thirteenFCards.length).padStart(2, "0")}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedThirteenFIndex((selectedThirteenFIndex + 1) % thirteenFCards.length)}
+                  aria-label="下一张 13F 卡片"
+                >
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+
+              <div className="thirteenf-control-summary">
+                <span>{selectedThirteenF.status}</span>
+                <p>{selectedThirteenF.summary}</p>
+              </div>
+
+              <div className="thirteenf-source-links">
+                {selectedThirteenF.sourceUrl ? (
+                  <a href={selectedThirteenF.sourceUrl} target="_blank" rel="noreferrer">
+                    {selectedThirteenF.sourceLabel || "SEC 原文"} <ExternalLink size={12} />
+                  </a>
+                ) : (
+                  <span className="thirteenf-reference-label">{selectedThirteenF.sourceLabel}</span>
+                )}
+                {selectedThirteenF.comparisonUrl && (
+                  <a href={selectedThirteenF.comparisonUrl} target="_blank" rel="noreferrer">
+                    上季对比 <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+            </section>
+          ) : (
+            <>
           <label className="field content-field">
             <span>
               <Highlighter size={16} />
@@ -1419,6 +1706,8 @@ function App() {
               </label>
             </>
           )}
+            </>
+          )}
 
           <label className="field">
             <span>
@@ -1452,17 +1741,33 @@ function App() {
             <input value={footerSubtitle} onChange={(event) => setFooterSubtitle(event.target.value)} placeholder="更小一行的补充说明" />
           </label>
 
-          <button className="primary-action" type="button" onClick={generateImage} disabled={isExporting}>
-            <ImageDown size={18} />
-            {isExporting ? "生成中" : "生成图片"}
-          </button>
+          {templateMode === "thirteenF" ? (
+            <div className="thirteenf-export-actions">
+              <button className="primary-action" type="button" onClick={generateImage} disabled={isExporting}>
+                <ImageDown size={18} />
+                {isExporting ? "生成中" : "生成当前卡片"}
+              </button>
+              <button className="secondary-action" type="button" onClick={exportAllThirteenFCards} disabled={isExporting}>
+                <Database size={17} />
+                批量导出全部 {thirteenFCards.length} 张
+              </button>
+              {batchExportProgress && <span className="thirteenf-export-progress">{batchExportProgress}</span>}
+            </div>
+          ) : (
+            <button className="primary-action" type="button" onClick={generateImage} disabled={isExporting}>
+              <ImageDown size={18} />
+              {isExporting ? "生成中" : "生成图片"}
+            </button>
+          )}
         </aside>
 
         <section className="preview-stage">
           <div className="phone-frame">
             <article
               className={`share-card ${
-                templateMode === "daily"
+                templateMode === "thirteenF"
+                  ? `theme-thirteenf thirteenf-card tone-${selectedThirteenF.tone}`
+                  : templateMode === "daily"
                   ? "theme-daily daily-card"
                   : templateMode === "options"
                   ? "theme-options options-card"
@@ -1478,7 +1783,9 @@ function App() {
                 ))}
               </div>
 
-              {templateMode === "daily" ? (
+              {templateMode === "thirteenF" ? (
+                <ThirteenFCardContent data={selectedThirteenF} />
+              ) : templateMode === "daily" ? (
                 <>
                   <header className="share-header daily-header">
                     <div>
@@ -1709,6 +2016,34 @@ function App() {
               </footer>
             </article>
           </div>
+
+          {templateMode === "thirteenF" ? (
+            <div className="thirteenf-export-deck" ref={thirteenFDeckRef} aria-hidden="true">
+              {thirteenFCards.map((card) => (
+                <article
+                  className={`share-card theme-thirteenf thirteenf-card tone-${card.tone}`}
+                  data-thirteen-f-export-card
+                  key={card.id}
+                >
+                  <div className="watermark-layer" aria-hidden="true">
+                    {Array.from({ length: 40 }).map((_, index) => (
+                      <span key={index}>{watermark}</span>
+                    ))}
+                  </div>
+                  <ThirteenFCardContent data={card} />
+                  <footer className="share-footer">
+                    <div className="footer-copy">
+                      <strong>{footerText || "社会观察从业者"}</strong>
+                      <span>{footerSubtitle || "公众号&知识星球"}</span>
+                    </div>
+                    <div className="qr-box">
+                      <QRCodeSVG value={qrLink || "https://t.zsxq.com/xvVXu"} size={92} level="M" includeMargin />
+                    </div>
+                  </footer>
+                </article>
+              ))}
+            </div>
+          ) : null}
 
           {generatedImage && (
             <div
