@@ -667,6 +667,7 @@ type ResearchGroup = {
 function groupResearchItems(items: ContentItem[]) {
   const groups: ResearchGroup[] = [];
   let current: ResearchGroup | null = null;
+  const leadingItems: Array<Exclude<ContentItem, { type: "section" }>> = [];
 
   for (const item of items) {
     if (item.type === "section") {
@@ -676,11 +677,19 @@ function groupResearchItems(items: ContentItem[]) {
     }
 
     if (!current) {
-      current = { heading: { type: "section", text: "核心结论" }, items: [] };
-      groups.push(current);
+      leadingItems.push(item as Exclude<ContentItem, { type: "section" }>);
+      continue;
     }
 
     current.items.push(item as Exclude<ContentItem, { type: "section" }>);
+  }
+
+  if (groups.length) {
+    // FlowPost chart directives commonly sit above the first Markdown heading.
+    // Keep the report's written conclusion first, then show its supporting evidence.
+    groups[0].items.push(...leadingItems);
+  } else if (leadingItems.length) {
+    groups.push({ heading: { type: "section", text: "核心结论" }, items: leadingItems });
   }
 
   return groups;
@@ -699,8 +708,8 @@ function ResearchItem({ item }: { item: Exclude<ContentItem, { type: "section" }
   if (item.type === "image") {
     return (
       <figure className="research-evidence">
-        <img src={item.src} alt={item.alt} />
         <figcaption><span>{item.alt}</span>{item.takeaway && <strong>{item.takeaway}</strong>}</figcaption>
+        <img src={item.src} alt={item.alt} />
       </figure>
     );
   }
