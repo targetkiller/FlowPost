@@ -401,6 +401,14 @@ function cleanMarkdownText(text: string) {
     .replace(/^__(.+)__$/, "$1");
 }
 
+function cleanMarkdownTitle(text: string) {
+  return cleanMarkdownText(text)
+    .replace(/`+([^`]+?)`+/g, "$1")
+    .replace(/\\([\\`*_[\]{}()#+.!-])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isMarkdownContent(text: string) {
   if (/(^|\n)\s*#{1,6}\s+\S/.test(text) || /(^|\n)\s*(?:[-*+]|\d+[.)])\s+\S/.test(text)) {
     return true;
@@ -562,7 +570,7 @@ function parseMarkdownContent(text: string): ParsedContent {
       flushParagraph();
       try {
         const chart = JSON.parse(chartDirective[1]) as { title?: string; takeaway?: string; image?: string };
-        if (chart.image) items.push({ type: "image", alt: chart.title || "报告图表", takeaway: chart.takeaway || "", src: chart.image });
+        if (chart.image) items.push({ type: "image", alt: cleanMarkdownTitle(chart.title || "报告图表"), takeaway: chart.takeaway || "", src: chart.image });
       } catch {
         // A malformed directive should stay invisible rather than appearing in the post.
       }
@@ -572,7 +580,7 @@ function parseMarkdownContent(text: string): ParsedContent {
     const image = line.match(/^!\[([^\]]*)\]\((data:image\/[a-zA-Z0-9.+-]+;base64,[^)]+|https?:\/\/[^)]+)\)$/);
     if (image) {
       flushParagraph();
-      items.push({ type: "image", alt: image[1] || "报告图表", src: image[2] });
+      items.push({ type: "image", alt: cleanMarkdownTitle(image[1] || "报告图表"), src: image[2] });
       continue;
     }
 
@@ -603,7 +611,7 @@ function parseMarkdownContent(text: string): ParsedContent {
     if (heading) {
       flushParagraph();
       const level = heading[1].length;
-      const headingText = cleanMarkdownText(heading[2]);
+      const headingText = cleanMarkdownTitle(heading[2]);
 
       if (level === 1 && !inferredTitle) {
         inferredTitle = headingText;
@@ -1276,7 +1284,7 @@ function App() {
   const targetPriceBrief = useMemo(() => parseTargetPriceBrief(content), [content]);
   const dailyBrief = useMemo(() => parseDailyBrief(content), [content]);
   const selectedThirteenF = thirteenFCards[selectedThirteenFIndex] || thirteenFCards[0];
-  const displayTitle = title.trim() || parsed.inferredTitle;
+  const displayTitle = cleanMarkdownTitle(title.trim() || parsed.inferredTitle);
   const researchItems = useMemo<ContentItem[]>(() => parsed.items.map((item) => item.type === "image" ? { ...item, src: resolvedAssets[item.src] || toFlowPostAssetUrl(item.src) } : item), [parsed.items, resolvedAssets]);
   const displayReportCover = reportCover || (parsed.reportCover ? resolvedAssets[parsed.reportCover] || toFlowPostAssetUrl(parsed.reportCover) : "");
   const displayReportSource = reportSource.trim() || parsed.reportSource || "华尔街研报 · 图表证据 · 深度解读";
